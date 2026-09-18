@@ -1,4 +1,4 @@
-export const BASE_URL = "http://localhost:5000/api";
+export const BASE_URL = "https://apistaff.creatikai.com/api";
 //https://live-project-backend-1.onrender.com
 //https://propertyapi.aileadgenie.cloud/api
 //https://apidomain.ibigdata.in
@@ -569,4 +569,4 @@ TASK: {
   }
 };
 
-export const API_URL = "http://localhost:5000";
+export const API_URL = "https://apistaff.creatikai.com";

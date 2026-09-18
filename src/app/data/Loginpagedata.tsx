@@ -13,6 +13,10 @@ import {
   FaRobot,
   FaBolt,
   FaFunnelDollar,
+  FaUserClock,
+  FaCalendarCheck,
+  FaMobileAlt,
+  FaFingerprint,
 } from "react-icons/fa";
 import type { IconType } from "react-icons";
 
@@ -69,71 +73,71 @@ export const loginPageContent: LoginPageContent = {
   illustration: "/bglogo.png",
 
   heading: {
-    lineOne: "Smart Solutions.",
-    lineTwo: "Stronger ",
-    highlight: "Businesses.",
+    lineOne: "Smart Operations.",
+    lineTwo: "Empowered ",
+    highlight: "Teams.",
   },
 
   description:
-    "This platform helps you manage clients, projects, and tasks in one place. Streamline your workflow, boost team collaboration, and deliver better results every time.",
+    "Your intelligent employee portal. Seamlessly log attendance, submit time-off requests, and access your weekly insights all in one unified, AI-driven workspace.",
 
   features: [
     {
-      icon: FaUsers,
-      title: "Client Management",
+      icon: FaUserClock,
+      title: "AI-Powered Attendance",
       description:
-        "Organize client information and communication in a centralized system.",
+        "Clock in and out seamlessly with real-time tracking, intelligent shift logging, and automated hours calculation.",
     },
     {
-      icon: FaBriefcase,
-      title: "Project Tracking",
+      icon: FaCalendarCheck,
+      title: "Smart Leave Management",
       description:
-        "Plan, assign, and track projects to ensure timely delivery.",
+        "Submit and track your WFH or time-off requests instantly with automated admin routing.",
     },
     {
       icon: FaChartBar,
-      title: "Business Insights",
+      title: "Personal Insights",
       description:
-        "Get real-time reports and analytics to make smarter decisions.",
+        "Review your attendance streaks, total hours worked, and personalized work patterns on your dashboard.",
     },
     {
       icon: FaShieldAlt,
-      title: "Secure & Reliable",
+      title: "Secure & Private",
       description:
-        "Your data is safe with role-based access and industry-standard security.",
+        "Your employee data is protected with enterprise-grade security and strict role-based access.",
     },
   ],
 
   highlightCard: {
-    icon: FaRocket,
-    title: "Empowering Your Success",
+    icon: FaBolt,
+    title: "Enhancing Your Workday",
     description:
-      "We're here to help you build better relationships, work smarter, and grow your business.",
+      "We leverage automation to make team administration invisible, giving you more time to focus on your actual work.",
     stats: [
-      { icon: FaUsers, value: "10K+", label: "Happy Clients" },
-      { icon: FaChartLine, value: "25K+", label: "Projects Managed" },
-      { icon: FaTrophy, value: "98%", label: "Client Satisfaction" },
+      { icon: FaMobileAlt, value: "100%", label: "Live Tracking Sync" },
+      { icon: FaCalendarCheck, value: "24/7", label: "Portal Accessibility" },
+      { icon: FaFingerprint, value: "Zero", label: "Manual Paperwork" },
     ],
   },
 
   form: {
-    title: "Admin Login",
-    subtitle: "Welcome back! Please login to continue.",
-    emailLabel: "Email Address",
-    emailPlaceholder: "admin@example.com",
+    title: "Staff Login",
+    subtitle: "Welcome back! Please sign in to access your workspace.",
+    emailLabel: "Employee Email",
+    emailPlaceholder: "employee@company.com",
     passwordLabel: "Password",
     passwordPlaceholder: "••••••••••",
     rememberLabel: "Remember me",
     forgotLabel: "Forgot Password?",
     forgotHref: "/forgot-password",
-    submitLabel: "Login",
-    submitLoadingLabel: "Logging in...",
+    submitLabel: "Sign In",
+    submitLoadingLabel: "Authenticating...",
     dividerLabel: "or",
-    registerPrompt: "Don't have an Account?",
-    registerLabel: "Register",
-    registerHref: "/register",
-    securityNote: "Your data is protected with enterprise-grade security.",
-    brandName: "Consultancy CRM",
+    registerPrompt: "Need portal access?",
+    registerLabel: "Contact Admin",
+    registerHref: "#", // Usually internal staff don't self-register, but you can route this to an IT/Admin mailto or internal form
+    securityNote: "Your session is protected with end-to-end encryption.",
+    brandName: "Staff Portal",
     copyrightSuffix: "All rights reserved.",
   },
 };

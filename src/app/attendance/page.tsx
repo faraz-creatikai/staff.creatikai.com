@@ -312,7 +312,18 @@ export default function AdminAttendanceCalendar() {
     });
   };
 
+
   const jumpToMonth = (monthStr: string) => {
+    // Prevent crash when the user clicks 'clear' (value becomes empty)
+    if (!monthStr) {
+      // Option 1: Do nothing, just ignore the clear action
+      //return; 
+      
+      // Option 2 (Alternative): Reset to the current week if they clear it
+      setCurrentWeekStart(getStartOfWeek(new Date())); 
+     return;
+    }
+
     const [year, month] = monthStr.split('-');
     const newDate = new Date(Number(year), Number(month) - 1, 1);
     setCurrentWeekStart(getStartOfWeek(newDate));

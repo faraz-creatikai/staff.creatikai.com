@@ -667,6 +667,7 @@ export default function AdminTasksPage() {
                   <span className="text-xs font-bold text-gray-400 uppercase shrink-0">OR</span>
                   <input
                     type="date"
+                    placeholder="Select Date"
                     value={filterExactDate}
                     onChange={(e) => {
                       setFilterExactDate(e.target.value);

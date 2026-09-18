@@ -151,7 +151,7 @@ export default function CustomerTypeEdit() {
                 
                 <ObjectSelect
                   options={Array.isArray(fieldOptions?.Campaign) ? fieldOptions.Campaign : []}
-                  label="Campaign"
+                  label={getLabel("Campaign","Campaign")}
                   value={typeData.Campaign}
                   getLabel={(item) => item?.Name || ""}
                   getId={(item) => item?._id || ""}

@@ -45,8 +45,8 @@ export default function PortalSelectionPage() {
       />
 
       {/* --- TOP BAR --- */}
-      <header className="relative z-10 w-full px-6 sm:px-10 py-6 flex items-center justify-between">
-        <BrandLogo variant="text" className="h-14 w-auto object-contain" />
+      <header className="relative z-10 w-full px-3 py-3 sm:px-10 sm:py-6 flex items-center justify-between">
+        <BrandLogo variant="text" className=" h-10 sm:h-14 w-auto object-contain" />
         <a
           href="https://creatikai.com/resourses/contact-us"
           target="_blank"
@@ -58,7 +58,7 @@ export default function PortalSelectionPage() {
       </header>
 
       {/* --- MAIN CONTAINER --- */}
-      <main className="relative z-10 flex-1 w-full max-w-5xl mx-auto px-6 py-10 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <main className="relative z-10 flex-1 w-full max-w-5xl mx-auto px-3 py-3 sm:px-10 sm:py-6 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-gray-100 shadow-sm text-sm font-semibold text-gray-600 mb-8">
           <Sparkles size={15} className="text-[var(--color-primary)]" />

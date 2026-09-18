@@ -38,6 +38,7 @@ export default function CustomerTypeAdd() {
 
   const [errors, setErrors] = useState<ErrorInterface>({});
   const router = useRouter();
+  
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,7 +57,7 @@ export default function CustomerTypeAdd() {
   const validateForm = () => {
     const newErrors: ErrorInterface = {};
     if (!typeData.Campaign.trim()) newErrors.Campaign = "Campaign is required";
-    if (!typeData.Name.trim()) newErrors.Name = "type Name is required";
+    if (!typeData.Name.trim()) newErrors.Name = "name is required";
     if (!typeData.Status.trim()) newErrors.Status = "Status is required";
     return newErrors;
   };
@@ -127,7 +128,7 @@ export default function CustomerTypeAdd() {
 
                 <ObjectSelect
                   options={Array.isArray(fieldOptions?.Campaign) ? fieldOptions.Campaign : []}
-                  label="Campaign"
+                  label={getLabel("Campaign","Campaign")}
                   value={typeData.Campaign}
                   getLabel={(item) => item?.Name || ""}
                   getId={(item) => item?._id || ""}
@@ -139,9 +140,9 @@ export default function CustomerTypeAdd() {
                 />
 
 
-                {/* type Name */}
+                {/* name */}
                 <InputField
-                  label="type Name"
+                  label="name"
                   name="Name"
                   value={typeData.Name}
                   onChange={handleInputChange}

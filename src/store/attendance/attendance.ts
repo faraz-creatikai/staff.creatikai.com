@@ -229,3 +229,33 @@ export const getFilteredAdminAttendanceReport = async (params: string): Promise<
     return null;
   }
 };
+
+
+//analytics of attendance
+
+export const getAttendanceTrendData = async (startDate: string, endDate: string) => {
+  try {
+    const response = await fetch(API_ROUTES.ATTENDANCE.GET_ATTENDANCE_TREND(startDate,endDate), {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("SERVER ERROR: ", error);
+    return null;
+  }
+};
+
+
+export const getAttendanceOverviewData = async (startDate: string, endDate: string) => {
+  try {
+    const response = await fetch(API_ROUTES.ATTENDANCE.GET_ATTENDANCE_OVERVIEW(startDate,endDate), {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("SERVER ERROR: ", error);
+    return null;
+  }
+};

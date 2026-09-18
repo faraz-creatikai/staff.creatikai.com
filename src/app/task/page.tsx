@@ -64,14 +64,13 @@ interface SubTaskItem {
   id: string;
   title: string;
   description?: string | null;
-  isCompleted: boolean;
+  status: TaskStatus; // NEW: Status moved to subtask
 }
 
 interface TaskItem {
   id: string;
   title: string;
   description: string;
-  status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
   assignedToId: string;
@@ -137,8 +136,11 @@ export default function AdminTasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<"create" | "edit">("create");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [viewTaskData, setViewTaskData] = useState<TaskItem | null>(null);
+  const [viewSubtaskFilter, setViewSubtaskFilter] = useState<TaskStatus | "all">("all"); // Subtask internal filter
+  
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
@@ -157,11 +159,10 @@ export default function AdminTasksPage() {
   const [isAiPickerOpen, setIsAiPickerOpen] = useState(false); 
   const aiTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Form State (Now supports an array for multi-select creation)
+  // Form State
   const [formData, setFormData] = useState<any>({
     title: "", description: "", priority: "medium", dueDate: "", assignedToIds: []
   });
-  const [editStatus, setEditStatus] = useState<TaskStatus>("todo");
 
   // Universal Custom Dropdown Manager
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -170,17 +171,14 @@ export default function AdminTasksPage() {
   const [formEmpSearchQuery, setFormEmpSearchQuery] = useState("");
   const [filterEmpSearchQuery, setFilterEmpSearchQuery] = useState("");
 
-  // Server-Side Filters State
+  // Server-Side Filters State (Removed status)
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
   const [filterDate, setFilterDate] = useState<"all" | "overdue" | "today" | "upcoming">("all");
   const [filterExactDate, setFilterExactDate] = useState<string>("");
   const [filterEmployeeId, setFilterEmployeeId] = useState<string | "all">("all");
 
   const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
-
-  // Mobile-only filter toggle
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
   // --- GROUP PANEL / SLIDE STATE ---
@@ -207,7 +205,6 @@ export default function AdminTasksPage() {
     try {
       const params = new URLSearchParams();
       if (searchQuery.trim()) params.append("search", searchQuery.trim());
-      if (filterStatus !== "all") params.append("status", filterStatus);
       if (filterPriority !== "all") params.append("priority", filterPriority);
       if (filterDate !== "all") params.append("date", filterDate);
       if (filterExactDate) params.append("exactDate", filterExactDate);
@@ -227,7 +224,7 @@ export default function AdminTasksPage() {
       fetchFilteredTasks();
     }, 400);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, filterStatus, filterPriority, filterDate, filterExactDate, filterEmployeeId]);
+  }, [searchQuery, filterPriority, filterDate, filterExactDate, filterEmployeeId]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -249,18 +246,16 @@ export default function AdminTasksPage() {
       setFormData({
         title: task.title, description: task.description || "", priority: task.priority,
         dueDate: task.dueDate ? new Date(task.dueDate).toISOString().split('T')[0] : "",
-        assignedToIds: [task.assignedToId] // array of one for edit
+        assignedToIds: [task.assignedToId]
       });
-      setEditStatus(task.status);
     } else {
       setSelectedTaskId(null);
       setFormData({ title: "", description: "", priority: "medium", dueDate: "", assignedToIds: [] });
-      setEditStatus("todo");
     }
     setIsModalOpen(true);
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.assignedToIds || formData.assignedToIds.length === 0) {
       toast.error("Title and at least one Assigned Employee are required");
@@ -269,21 +264,18 @@ const handleSubmit = async (e: React.FormEvent) => {
     try {
       if (modalMode === "create") {
         const payload = {
-          ...formData, // This now includes assignedToIds: [...]
+          ...formData, 
           subTasks: formSubTasks.length > 0 ? formSubTasks : undefined,
         };
-
         const res = await addAdminTask(payload);
         if (res?.success) toast.success("Task assigned successfully");
       } else if (modalMode === "edit" && selectedTaskId) {
-        // Edit mode targets a single task
         const payload: AdminUpdateTaskPayload = { 
           title: formData.title,
           description: formData.description,
           priority: formData.priority,
           dueDate: formData.dueDate,
-          assignedToId: formData.assignedToIds[0], // Extract single ID for editing
-          status: editStatus 
+          assignedToId: formData.assignedToIds[0] 
         };
         const res = await updateAdminTask(selectedTaskId, payload);
         if (res?.success) toast.success("Task updated");
@@ -294,7 +286,14 @@ const handleSubmit = async (e: React.FormEvent) => {
       toast.error("An error occurred");
     }
   };
-  const handleViewClick = (id: string | number) => {
+
+  const handleViewClick = (id: string | number, task: TaskItem) => {
+    setViewTaskData(task);
+    setViewSubtaskFilter("all"); // Reset subtask filter on open
+    setIsViewModalOpen(true);
+  };
+
+  const handleUserClick = (id: string | number) => {
     setCustomerToView(id);
     setIsViewOpen(true);
   };
@@ -336,7 +335,6 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   const clearFilters = () => {
     setSearchQuery("");
-    setFilterStatus("all");
     setFilterPriority("all");
     setFilterDate("all");
     setFilterExactDate("");
@@ -352,8 +350,8 @@ const handleSubmit = async (e: React.FormEvent) => {
       under_review: "bg-purple-50 text-purple-600 border border-purple-100",
       completed: "bg-emerald-50 text-emerald-600 border border-emerald-100",
     };
-    const labels: Record<string, string> = { all: "All Statuses", todo: "To Do", in_progress: "In Progress", under_review: "Review", completed: "Completed" };
-    return <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${styles[status as string]}`}>{labels[status as string]}</span>;
+    const labels: Record<string, string> = { all: "All", todo: "To Do", in_progress: "In Progress", under_review: "Review", completed: "Completed" };
+    return <span className={`px-2.5 py-1 rounded-full text-[10px] tracking-wider uppercase font-bold ${styles[status as string]}`}>{labels[status as string]}</span>;
   };
 
   const priorityLabels: Record<string, string> = { all: "All Priorities", low: "Low", medium: "Medium", high: "High", urgent: "Urgent" };
@@ -373,7 +371,6 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   const activeFilterCount = [
     filterEmployeeId !== "all",
-    filterStatus !== "all",
     filterPriority !== "all",
     filterDate !== "all",
     filterExactDate !== "",
@@ -445,12 +442,16 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   const getGroupProgress = (group: TaskGroup) => {
     const totalSub = group.tasks.reduce((sum, t) => sum + (t.subTasks?.length || 0), 0);
-    const doneSub = group.tasks.reduce((sum, t) => sum + (t.subTasks?.filter(s => s.isCompleted).length || 0), 0);
-    if (totalSub === 0) {
-      const completedCount = group.tasks.filter(t => t.status === "completed").length;
-      return group.tasks.length ? Math.round((completedCount / group.tasks.length) * 100) : 0;
-    }
+    const doneSub = group.tasks.reduce((sum, t) => sum + (t.subTasks?.filter(s => s.status === 'completed').length || 0), 0);
+    if (totalSub === 0) return 0; // Tasks without subtasks sit at 0%
     return Math.round((doneSub / totalSub) * 100);
+  };
+
+  const getTaskProgress = (task: TaskItem) => {
+    const total = task.subTasks?.length || 0;
+    const completed = task.subTasks?.filter(st => st.status === 'completed').length || 0;
+    if (total === 0) return 0;
+    return Math.round((completed / total) * 100);
   };
 
   const getGroupSubtaskTotal = (group: TaskGroup) =>
@@ -549,7 +550,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             {/* SERVER-SIDE FILTERS BAR */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between mb-6">
-
+              
               {/* MOBILE FILTER TOGGLE */}
               <button
                 type="button"
@@ -571,7 +572,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="relative custom-dropdown-container w-full sm:w-auto">
                   <div
                     onClick={() => setOpenDropdown(openDropdown === 'filter-emp' ? null : 'filter-emp')}
-                    className={`w-full sm:w-44 px-3 py-2.5 cursor-pointer rounded-xl border ${openDropdown === 'filter-emp' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} cursor-pointer flex items-center justify-between bg-white transition-all`}
+                    className={`w-full sm:w-44 px-3 py-2.5 cursor-pointer rounded-xl border ${openDropdown === 'filter-emp' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} flex items-center justify-between bg-white transition-all`}
                   >
                     <span className={`text-sm truncate ${selectedFilterEmp ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
                       {selectedFilterEmp ? selectedFilterEmp.customerName : "All Employees"}
@@ -613,35 +614,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                   )}
                 </div>
 
-                {/* CUSTOM FILTER: Status */}
-                <div className="relative custom-dropdown-container w-full sm:w-auto">
-                  <div
-                    onClick={() => setOpenDropdown(openDropdown === 'filter-status' ? null : 'filter-status')}
-                    className={`w-full sm:w-36 px-3 py-2.5 cursor-pointer rounded-xl border ${openDropdown === 'filter-status' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} cursor-pointer flex items-center justify-between bg-white transition-all`}
-                  >
-                    <span className="text-sm font-medium text-gray-700 truncate">{getStatusBadge(filterStatus)}</span>
-                    <ChevronDown size={14} className={`text-gray-400 shrink-0 transition-transform ${openDropdown === 'filter-status' ? 'rotate-180 text-[var(--color-primary)]' : ''}`} />
-                  </div>
-                  {openDropdown === 'filter-status' && (
-                    <div className="absolute z-40 w-full sm:w-44 max-w-[90vw] mt-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-1 right-0 md:left-0 animate-in fade-in slide-in-from-top-2">
-                      {["all", "todo", "in_progress", "under_review", "completed"].map(s => (
-                        <div
-                          key={s}
-                          onClick={() => { setFilterStatus(s as TaskStatus | "all"); setOpenDropdown(null); }}
-                          className={`px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${filterStatus === s ? 'bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)] font-bold' : 'hover:bg-gray-50 text-gray-700'}`}
-                        >
-                          {getStatusBadge(s as TaskStatus | "all")}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {/* CUSTOM FILTER: Priority */}
                 <div className="relative custom-dropdown-container w-full sm:w-auto">
                   <div
                     onClick={() => setOpenDropdown(openDropdown === 'filter-priority' ? null : 'filter-priority')}
-                    className={`w-full sm:w-36 px-3 py-2.5 rounded-xl cursor-pointer border ${openDropdown === 'filter-priority' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} cursor-pointer flex items-center justify-between bg-white transition-all`}
+                    className={`w-full sm:w-36 px-3 py-2.5 rounded-xl cursor-pointer border ${openDropdown === 'filter-priority' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} flex items-center justify-between bg-white transition-all`}
                   >
                     <span className="text-sm font-medium text-gray-700 truncate">{priorityLabels[filterPriority]}</span>
                     <ChevronDown size={14} className={`text-gray-400 shrink-0 transition-transform ${openDropdown === 'filter-priority' ? 'rotate-180 text-[var(--color-primary)]' : ''}`} />
@@ -665,7 +642,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <div className="relative custom-dropdown-container w-full sm:w-auto">
                   <div
                     onClick={() => setOpenDropdown(openDropdown === 'filter-date' ? null : 'filter-date')}
-                    className={`w-full sm:w-36 px-3 py-2.5 cursor-pointer rounded-xl border ${openDropdown === 'filter-date' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} cursor-pointer flex items-center justify-between bg-white transition-all`}
+                    className={`w-full sm:w-36 px-3 py-2.5 cursor-pointer rounded-xl border ${openDropdown === 'filter-date' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} flex items-center justify-between bg-white transition-all`}
                   >
                     <span className="text-sm font-medium text-gray-700 truncate">{dateLabels[filterDate]}</span>
                     <ChevronDown size={14} className={`text-gray-400 shrink-0 transition-transform ${openDropdown === 'filter-date' ? 'rotate-180 text-[var(--color-primary)]' : ''}`} />
@@ -696,12 +673,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                       if (e.target.value) setFilterDate("all"); 
                     }}
                     className={`flex-1 sm:flex-none sm:w-36 px-3 py-2 rounded-xl border transition-all text-sm font-medium outline-none cursor-pointer bg-white ${filterExactDate ? 'border-[var(--color-primary)] text-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200 text-gray-600 focus:border-[var(--color-primary)]'}`}
-                    title="Filter by exact calendar date"
                   />
                 </div>
 
                 {/* CLEAR FILTERS BUTTON */}
-                {(searchQuery !== "" || filterStatus !== "all" || filterPriority !== "all" || filterDate !== "all" || filterExactDate !== "" || filterEmployeeId !== "all") && (
+                {(searchQuery !== "" || filterPriority !== "all" || filterDate !== "all" || filterExactDate !== "" || filterEmployeeId !== "all") && (
                   <button
                     onClick={clearFilters}
                     className="flex items-center justify-center cursor-pointer gap-1.5 px-3 py-2 text-sm font-bold text-gray-500 hover:text-[var(--color-destructive)] bg-gray-100 hover:bg-red-50 rounded-xl transition-all w-full sm:w-auto"
@@ -741,7 +717,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                           </th>
                           <th className="p-4">Task Details</th>
                           <th className="p-4">Assigned To</th>
-                          <th className="p-4">Progress / Status</th>
+                          <th className="p-4">Overall Progress</th>
                           <th className="p-4">Due Date</th>
                           <th className="p-4 text-center">Actions</th>
                         </tr>
@@ -808,9 +784,8 @@ const handleSubmit = async (e: React.FormEvent) => {
 
                               <td className="p-4">
                                 <div className="flex flex-col gap-1.5 w-32">
-                                  <div className="flex justify-between items-center text-xs font-bold">
-                                    {memberCount === 1 ? getStatusBadge(group.tasks[0].status) : <span className="text-gray-500">Team Progress</span>}
-                                    <span className="text-gray-500">{progress}%</span>
+                                  <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                                    <span>{progress}% Completed</span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-1.5">
                                     <div className={`h-1.5 rounded-full ${progress === 100 ? 'bg-emerald-500' : 'bg-[var(--color-primary)]'}`} style={{ width: `${progress}%` }}></div>
@@ -884,8 +859,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                             <p className="font-bold text-gray-900 leading-snug">{group.title}</p>
 
                             <div className="flex items-center flex-wrap gap-2 mt-2">
-                              {memberCount === 1 ? getStatusBadge(group.tasks[0].status) : (
-                                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)]">
+                              {memberCount > 1 && (
+                                <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)]">
                                   {memberCount} Employees
                                 </span>
                               )}
@@ -907,9 +882,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                             </div>
 
                             <div className="mt-3">
-                              <div className="flex justify-between items-center text-xs font-bold mb-1">
-                                <span className="text-gray-400 uppercase tracking-wider">{memberCount > 1 ? "Team Progress" : "Progress"}</span>
-                                <span className="text-gray-500">{progress}%</span>
+                              <div className="flex justify-between items-center text-xs font-bold text-gray-500 mb-1">
+                                <span>{progress}% Completed</span>
                               </div>
                               <div className="w-full bg-gray-200 rounded-full h-1.5">
                                 <div className={`h-1.5 rounded-full ${progress === 100 ? 'bg-emerald-500' : 'bg-[var(--color-primary)]'}`} style={{ width: `${progress}%` }}></div>
@@ -940,7 +914,6 @@ const handleSubmit = async (e: React.FormEvent) => {
               const group = activeGroup;
               const progress = getGroupProgress(group);
               const memberCount = group.tasks.length;
-              const statusOrder: TaskStatus[] = ["todo", "in_progress", "under_review", "completed"];
               const isOverdue = !!(group.dueDate && new Date(group.dueDate) < new Date() && progress < 100);
               const groupSelectedCount = group.tasks.filter(t => selectedTasks.has(t.id)).length;
 
@@ -958,7 +931,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                   </div>
 
                   <div className="px-4 sm:px-6 py-5 border-b border-gray-200 bg-white shrink-0 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 w-full">
-
                     <div className="flex-1 min-w-0 w-full flex flex-col gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-xl sm:text-2xl font-black text-gray-900">{group.title}</h2>
@@ -991,79 +963,67 @@ const handleSubmit = async (e: React.FormEvent) => {
                         <div className={`h-2.5 rounded-full transition-all duration-500 ${progress === 100 ? 'bg-emerald-500' : 'bg-[var(--color-primary)]'}`} style={{ width: `${progress}%` }}></div>
                       </div>
                     </div>
-
                   </div>
 
                   <div className="flex-1 p-4 sm:px-6">
-                    {statusOrder.map(status => {
-                      const members = group.tasks.filter(t => t.status === status);
-                      if (members.length === 0) return null;
-                      return (
-                        <div key={status} className="mb-8">
-                          <div className="flex items-center gap-2 mb-3">
-                            {getStatusBadge(status)}
-                            <span className="text-xs font-bold text-gray-400">({members.length})</span>
-                          </div>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                            {members.map(task => {
-                              const completedSubTasks = task.subTasks?.filter(st => st.isCompleted).length || 0;
-                              const totalSubTasks = task.subTasks?.length || 0;
-                              const taskProgress = totalSubTasks === 0 ? (task.status === 'completed' ? 100 : 0) : Math.round((completedSubTasks / totalSubTasks) * 100);
-                              return (
-                                <div key={task.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleViewClick(task.assignedTo?.id || task.assignedTo?._id || "")}
-                                      className="flex items-center gap-2 min-w-0 cursor-pointer group/emp"
-                                    >
-                                      <UserCircle size={20} className="text-[var(--color-primary)] shrink-0" />
-                                      <span className="text-sm font-bold text-gray-800 truncate group-hover/emp:text-[var(--color-primary)]">
-                                        {task.assignedTo?.customerName || "Unknown"}
-                                      </span>
-                                    </button>
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedTasks.has(task.id)}
-                                      onChange={() => {
-                                        const newSet = new Set(selectedTasks);
-                                        newSet.has(task.id) ? newSet.delete(task.id) : newSet.add(task.id);
-                                        setSelectedTasks(newSet);
-                                      }}
-                                      className="w-4 h-4 rounded text-[var(--color-primary)] focus:ring-[var(--color-primary)] shrink-0"
-                                    />
-                                  </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {group.tasks.map(task => {
+                        const taskProgress = getTaskProgress(task);
+                        const completedSubTasks = task.subTasks?.filter(st => st.status === 'completed').length || 0;
+                        const totalSubTasks = task.subTasks?.length || 0;
+                        
+                        return (
+                          <div key={task.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleUserClick(task.assignedTo?.id || task.assignedTo?._id || "")}
+                                className="flex items-center gap-2 min-w-0 cursor-pointer group/emp"
+                              >
+                                <UserCircle size={20} className="text-[var(--color-primary)] shrink-0" />
+                                <span className="text-sm font-bold text-gray-800 truncate group-hover/emp:text-[var(--color-primary)]">
+                                  {task.assignedTo?.customerName || "Unknown"}
+                                </span>
+                              </button>
+                              <input
+                                type="checkbox"
+                                checked={selectedTasks.has(task.id)}
+                                onChange={() => {
+                                  const newSet = new Set(selectedTasks);
+                                  newSet.has(task.id) ? newSet.delete(task.id) : newSet.add(task.id);
+                                  setSelectedTasks(newSet);
+                                }}
+                                className="w-4 h-4 rounded text-[var(--color-primary)] focus:ring-[var(--color-primary)] shrink-0"
+                              />
+                            </div>
 
-                                  {(task._count?.subTasks ?? 0) > 0 && (
-                                    <div>
-                                      <div className="flex justify-between items-center text-[11px] font-bold text-gray-400 mb-1">
-                                        <span>Subtasks</span>
-                                        <span>{completedSubTasks}/{totalSubTasks} • {taskProgress}%</span>
-                                      </div>
-                                      <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                        <div className={`h-1.5 rounded-full ${taskProgress === 100 ? 'bg-emerald-500' : 'bg-[var(--color-primary)]'}`} style={{ width: `${taskProgress}%` }}></div>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
-                                    <button onClick={() => { setViewTaskData(task); setIsViewModalOpen(true); }} className="flex-1 flex items-center justify-center gap-1 py-2 cursor-pointer text-xs font-bold text-gray-500 hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-lighter)] rounded-lg transition-colors">
-                                      <Eye size={14} /> View
-                                    </button>
-                                    <button onClick={() => handleOpenCreateEditModal("edit", task)} className="flex-1 flex items-center justify-center gap-1 py-2 cursor-pointer text-xs font-bold text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                                      <Edit size={14} /> Edit
-                                    </button>
-                                    <button onClick={() => { setTaskToDelete(task.id); setIsDeleteModalOpen(true); }} className="flex-1 flex items-center justify-center gap-1 py-2 cursor-pointer text-xs font-bold text-gray-500 hover:text-[var(--color-destructive)] hover:bg-red-50 rounded-lg transition-colors">
-                                      <Trash2 size={14} /> Delete
-                                    </button>
-                                  </div>
+                            {(totalSubTasks > 0) && (
+                              <div>
+                                <div className="flex justify-between items-center text-[11px] font-bold text-gray-400 mb-1">
+                                  <span>Subtasks</span>
+                                  <span>{completedSubTasks}/{totalSubTasks} • {taskProgress}%</span>
                                 </div>
-                              );
-                            })}
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div className={`h-1.5 rounded-full ${taskProgress === 100 ? 'bg-emerald-500' : 'bg-[var(--color-primary)]'}`} style={{ width: `${taskProgress}%` }}></div>
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center gap-1 pt-1 border-t border-gray-100">
+                              <button onClick={() => handleViewClick(task.id, task)} className="flex-1 flex items-center justify-center gap-1 py-2 cursor-pointer text-xs font-bold text-gray-500 hover:text-[var(--color-primary)] hover:bg-[var(--color-primary-lighter)] rounded-lg transition-colors">
+                                <Eye size={14} /> View
+                              </button>
+                              <button onClick={() => handleOpenCreateEditModal("edit", task)} className="flex-1 flex items-center justify-center gap-1 py-2 cursor-pointer text-xs font-bold text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                <Edit size={14} /> Edit
+                              </button>
+                              <button onClick={() => { setTaskToDelete(task.id); setIsDeleteModalOpen(true); }} className="flex-1 flex items-center justify-center gap-1 py-2 cursor-pointer text-xs font-bold text-gray-500 hover:text-[var(--color-destructive)] hover:bg-red-50 rounded-lg transition-colors">
+                                <Trash2 size={14} /> Delete
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
 
                   {groupSelectedCount > 0 && (
@@ -1084,14 +1044,14 @@ const handleSubmit = async (e: React.FormEvent) => {
 
         </div>
       </div>
-{/* ========================================================= */}
+
+      {/* ========================================================= */}
       {/* 1. CREATE / EDIT TASK MODAL (AI-STYLE SPLIT LAYOUT)         */}
       {/* ========================================================= */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-gray-900/40 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white sm:rounded-3xl shadow-2xl border-0 sm:border sm:border-[var(--color-primary-light)] w-full sm:max-w-2xl md:max-w-5xl lg:max-w-6xl h-[100dvh] sm:h-[90vh] xl:h-[85vh] flex flex-col relative overflow-hidden">
             
-            {/* Header */}
             <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80 shrink-0">
               <h2 className="text-lg font-bold text-gray-900">
                 {modalMode === "create" ? "Assign New Task" : "Edit Task"}
@@ -1101,7 +1061,6 @@ const handleSubmit = async (e: React.FormEvent) => {
               </button>
             </div>
 
-            {/* SPLIT LAYOUT CONTAINER */}
             <div className="flex flex-1 overflow-hidden bg-white">
               
               {/* ---------------- PC LEFT SIDEBAR ---------------- */}
@@ -1250,33 +1209,6 @@ const handleSubmit = async (e: React.FormEvent) => {
                         />
                       </div>
                     </div>
-
-                    {/* CUSTOM FORM DROPDOWN: Status (Edit Only) */}
-                    {modalMode === "edit" && (
-                      <div className="relative custom-dropdown-container">
-                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Status</label>
-                        <div
-                          onClick={() => setOpenDropdown(openDropdown === 'form-status' ? null : 'form-status')}
-                          className={`w-full px-4 py-2.5 cursor-pointer rounded-xl border ${openDropdown === 'form-status' ? 'border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]' : 'border-gray-200'} flex items-center justify-between bg-white transition-all`}
-                        >
-                          <span className="text-sm font-medium text-gray-900">{getStatusBadge(editStatus)}</span>
-                          <ChevronDown size={14} className={`text-gray-400 transition-transform ${openDropdown === 'form-status' ? 'rotate-180 text-[var(--color-primary)]' : ''}`} />
-                        </div>
-                        {openDropdown === 'form-status' && (
-                          <div className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-1 animate-in fade-in slide-in-from-top-2">
-                            {["todo", "in_progress", "under_review", "completed"].map(s => (
-                              <div
-                                key={s}
-                                onClick={() => { setEditStatus(s as TaskStatus); setOpenDropdown(null); }}
-                                className={`px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${editStatus === s ? 'bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)] font-bold' : 'hover:bg-gray-50 text-gray-700'}`}
-                              >
-                                {getStatusBadge(s as TaskStatus)}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
 
                     <div>
                       <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Description</label>
@@ -1467,115 +1399,122 @@ const handleSubmit = async (e: React.FormEvent) => {
       {/* ========================================================= */}
       {/* 2. ANALYTICS VIEW TASK DASHBOARD MODAL                    */}
       {/* ========================================================= */}
-      {isViewModalOpen && viewTaskData && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
+      {isViewModalOpen && viewTaskData && (() => {
+        
+        const displayedSubtasks = viewTaskData.subTasks?.filter(st => viewSubtaskFilter === "all" || st.status === viewSubtaskFilter) || [];
+        
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center sm:p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]">
 
-            <div className=" px-2 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
-              <div className="flex items-center gap-2">
-                <Activity size={20} className="text-[var(--color-primary)]" />
-                <h2 className="text-lg font-extrabold text-gray-900">Task Analytics Dashboard</h2>
-              </div>
-              <button onClick={() => setIsViewModalOpen(false)} className="text-gray-400 cursor-pointer hover:text-gray-700 bg-white shadow-sm p-1.5 rounded-lg border border-gray-200 transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className=" p-3 sm:p-5 sm:p-6 overflow-y-auto space-y-6">
-
-              {/* Header Title & Badges */}
-              <div className="">
-                <h3 className="text-2xl font-black text-gray-900">{viewTaskData.title}</h3>
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  {getStatusBadge(viewTaskData.status)}
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${viewTaskData.priority === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : viewTaskData.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
-                    Priority: {priorityLabels[viewTaskData.priority]}
-                  </span>
+              <div className=" px-2 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
+                <div className="flex items-center gap-2">
+                  <Activity size={20} className="text-[var(--color-primary)]" />
+                  <h2 className="text-lg font-extrabold text-gray-900">Task Analytics Dashboard</h2>
                 </div>
+                <button onClick={() => setIsViewModalOpen(false)} className="text-gray-400 cursor-pointer hover:text-gray-700 bg-white shadow-sm p-1.5 rounded-lg border border-gray-200 transition-colors">
+                  <X size={18} />
+                </button>
               </div>
 
-              {/* Analytics Grid */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                <div className="bg-gray-50 border border-gray-100 p-4 rounded-2xl">
-                  <span className="block text-xs font-bold text-gray-400 uppercase">Assigned To</span>
-                  <div className="text-sm font-bold text-gray-900 mt-1 truncate">{viewTaskData.assignedTo?.customerName}</div>
-                </div>
-                <div className="bg-gray-50 border border-gray-100 p-4 rounded-2xl">
-                  <span className="block text-xs font-bold text-gray-400 uppercase">Due Date</span>
-                  <div className={`text-sm font-bold mt-1 ${viewTaskData.dueDate && new Date(viewTaskData.dueDate) < new Date() && viewTaskData.status !== 'completed' ? 'text-[var(--color-destructive)]' : 'text-gray-900'}`}>
-                    {viewTaskData.dueDate ? new Date(viewTaskData.dueDate).toLocaleDateString() : "N/A"}
+              <div className=" p-3 sm:p-5 sm:p-6 overflow-y-auto space-y-6">
+
+                {/* Header Title & Badges */}
+                <div className="">
+                  <h3 className="text-2xl font-black text-gray-900">{viewTaskData.title}</h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] uppercase font-bold border ${viewTaskData.priority === 'urgent' ? 'bg-red-50 text-red-600 border-red-200' : viewTaskData.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-blue-50 text-blue-600 border-blue-200'}`}>
+                      Priority: {priorityLabels[viewTaskData.priority]}
+                    </span>
                   </div>
                 </div>
 
-                {(() => {
-                  const total = viewTaskData.subTasks?.length || 0;
-                  const completed = viewTaskData.subTasks?.filter(st => st.isCompleted).length || 0;
-                  const progress = total === 0 ? (viewTaskData.status === 'completed' ? 100 : 0) : Math.round((completed / total) * 100);
-
-                  return (
-                    <>
-                      <div className="bg-[var(--color-primary-lighter)] border border-[var(--color-primary-light)] p-4 rounded-2xl col-span-2 flex flex-col justify-center relative overflow-hidden">
-                        <span className="block text-xs font-bold text-[var(--color-primary-darker)] uppercase z-10">Total Progress</span>
-                        <div className="flex items-end justify-between mt-1 z-10">
-                          <div className="text-2xl font-black text-[var(--color-primary)]">{progress}%</div>
-                          <div className="text-xs font-bold text-[var(--color-primary-dark)]">{completed} / {total} Steps</div>
-                        </div>
-                        {/* Progress Bar Background fill */}
-                        <div className="absolute bottom-0 left-0 h-1.5 bg-[var(--color-primary)] transition-all" style={{ width: `${progress}%` }} />
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-              {/* Description */}
-              {viewTaskData.description && (
-                <div>
-                  <span className="block text-xs font-bold text-gray-400 uppercase mb-2">Instructions / Description</span>
-                  <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-xl border border-gray-100 leading-relaxed whitespace-pre-wrap">
-                    {viewTaskData.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Subtasks Checklist View */}
-              <div>
-                <span className="block text-xs font-bold text-gray-400 uppercase mb-3">Subtasks Checklist</span>
-                {viewTaskData.subTasks && viewTaskData.subTasks.length > 0 ? (
-                  <div className="grid gap-2">
-                    {viewTaskData.subTasks.map(sub => (
-                      <div key={sub.id} className="flex items-start gap-3 p-2 sm:p-3.5 bg-white border border-gray-200 rounded-xl shadow-sm">
-                        <div className="mt-0.5 shrink-0">
-                          {sub.isCompleted ? (
-                            <CheckSquare size={18} className="text-emerald-500" />
-                          ) : (
-                            <Square size={18} className="text-gray-300" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className={`block text-sm font-medium ${sub.isCompleted ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
-                            {sub.title}
-                          </span>
-                          {/* UPDATED: Subtask Optional Description Rendering */}
-                          {sub.description && (
-                            <p className="mt-1.5 text-xs text-gray-600 bg-gray-50 p-1 sm:p-2.5 rounded-lg border border-gray-100 whitespace-pre-wrap leading-relaxed">
-                              {sub.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
+                {/* Analytics Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="bg-gray-50 border border-gray-100 p-4 rounded-2xl">
+                    <span className="block text-xs font-bold text-gray-400 uppercase">Assigned To</span>
+                    <div className="text-sm font-bold text-gray-900 mt-1 truncate">{viewTaskData.assignedTo?.customerName}</div>
                   </div>
-                ) : (
-                  <div className="p-6 border border-dashed border-gray-200 rounded-xl text-center text-sm text-gray-500">
-                    No subtasks have been created for this task yet.
+                  <div className="bg-gray-50 border border-gray-100 p-4 rounded-2xl">
+                    <span className="block text-xs font-bold text-gray-400 uppercase">Due Date</span>
+                    <div className={`text-sm font-bold mt-1 ${viewTaskData.dueDate && new Date(viewTaskData.dueDate) < new Date() && getTaskProgress(viewTaskData) < 100 ? 'text-[var(--color-destructive)]' : 'text-gray-900'}`}>
+                      {viewTaskData.dueDate ? new Date(viewTaskData.dueDate).toLocaleDateString() : "N/A"}
+                    </div>
+                  </div>
+
+                  <div className="bg-[var(--color-primary-lighter)] border border-[var(--color-primary-light)] p-4 rounded-2xl col-span-2 flex flex-col justify-center relative overflow-hidden">
+                    <span className="block text-xs font-bold text-[var(--color-primary-darker)] uppercase z-10">Total Progress</span>
+                    <div className="flex items-end justify-between mt-1 z-10">
+                      <div className="text-2xl font-black text-[var(--color-primary)]">{getTaskProgress(viewTaskData)}%</div>
+                      <div className="text-xs font-bold text-[var(--color-primary-dark)]">
+                        {viewTaskData.subTasks?.filter(st => st.status === 'completed').length || 0} / {viewTaskData.subTasks?.length || 0} Steps
+                      </div>
+                    </div>
+                    <div className="absolute bottom-0 left-0 h-1.5 bg-[var(--color-primary)] transition-all" style={{ width: `${getTaskProgress(viewTaskData)}%` }} />
+                  </div>
+                </div>
+
+                {/* Description */}
+                {viewTaskData.description && (
+                  <div>
+                    <span className="block text-xs font-bold text-gray-400 uppercase mb-2">Instructions / Description</span>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-4 rounded-xl border border-gray-100 leading-relaxed whitespace-pre-wrap">
+                      {viewTaskData.description}
+                    </p>
                   </div>
                 )}
+
+                {/* Subtasks Checklist View with INTERNAL STATUS FILTER */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="block text-xs font-bold text-gray-400 uppercase">Subtasks Checklist</span>
+                    
+                    {/* Inline Filter Pills for Subtasks */}
+                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto custom-scrollbar">
+                      {["all", "todo", "in_progress", "under_review", "completed"].map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setViewSubtaskFilter(s as any)}
+                          className={`px-2 py-1 text-[10px] font-bold uppercase rounded-md transition-colors whitespace-nowrap ${viewSubtaskFilter === s ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          {s.replace("_", " ")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {displayedSubtasks.length > 0 ? (
+                    <div className="grid gap-2">
+                      {displayedSubtasks.map(sub => (
+                        <div key={sub.id} className="flex items-start gap-3 p-2 sm:p-3.5 bg-white border border-gray-200 rounded-xl shadow-sm">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <span className={`block text-sm font-medium ${sub.status === 'completed' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                                {sub.title}
+                              </span>
+                              {getStatusBadge(sub.status)}
+                            </div>
+                            
+                            {sub.description && (
+                              <p className="mt-1.5 text-xs text-gray-600 bg-gray-50 p-1 sm:p-2.5 rounded-lg border border-gray-100 whitespace-pre-wrap leading-relaxed">
+                                {sub.description}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-6 border border-dashed border-gray-200 rounded-xl text-center text-sm text-gray-500">
+                      No subtasks match the selected filter.
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================= */}
       {/* 3. DELETE CONFIRMATION MODAL                              */}

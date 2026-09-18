@@ -15,6 +15,7 @@ import SaveButton from "@/app/component/buttons/SaveButton";
 import { handleFieldOptionsObject } from "@/app/utils/handleFieldOptionsObject";
 import ObjectSelect from "@/app/component/ObjectSelect";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 interface ErrorInterface {
   [key: string]: string;
@@ -32,6 +33,8 @@ export default function CustomerTypeEdit() {
   const router = useRouter();
   const { id } = useParams();
   const [fieldOptions, setFieldOptions] = useState<Record<string, any[]>>({});
+     const { getLabel, labels } = useCustomerFieldLabel();
+       
 
 
   const handleInputChange = useCallback(
@@ -51,7 +54,7 @@ export default function CustomerTypeEdit() {
   const validateForm = () => {
     const newErrors: ErrorInterface = {};
     if (!typeData.Campaign.trim()) newErrors.Campaign = "Campaign is required";
-    if (!typeData.Name.trim()) newErrors.Name = "Customer Type Name is required";
+    if (!typeData.Name.trim()) newErrors.Name = "type Name is required";
     if (!typeData.Status.trim()) newErrors.Status = "Status is required";
     return newErrors;
   };
@@ -68,7 +71,7 @@ export default function CustomerTypeEdit() {
           Status: res.Status,
         });
       } else {
-        toast.error("Failed to fetch Customer Type details");
+        toast.error("Failed to fetch type details");
       }
       setLoading(false);
     };
@@ -88,11 +91,11 @@ export default function CustomerTypeEdit() {
     try {
       const result = await updateTypes(id as string, typeData);
       if (result) {
-        toast.success("Customer Type updated successfully!");
+        toast.success("type updated successfully!");
         router.push("/masters/customer-types");
       }
     } catch (error) {
-      toast.error("Failed to update Customer Type");
+      toast.error("Failed to update type");
       console.error("CustomerType Update Error:", error);
     }
   };
@@ -138,7 +141,7 @@ export default function CustomerTypeEdit() {
           <form onSubmit={(e) => e.preventDefault()} className="w-full">
             <div className="mb-8 text-left border-b pb-4 border-gray-200">
               <h1 className="text-3xl font-extrabold text-gray-800 leading-tight tracking-tight">
-                Edit <span className="text-[var(--color-primary)]">Customer Type</span>
+                Edit <span className="text-[var(--color-primary)]"> {getLabel("CustomerType","Type")}</span>
               </h1>
             </div>
 
@@ -159,9 +162,9 @@ export default function CustomerTypeEdit() {
                   error={errors.Campaign}
                 />
 
-                {/* Customer Type Name */}
+                {/* type Name */}
                 <InputField
-                  label="Customer Type Name"
+                  label="type Name"
                   name="Name"
                   value={typeData.Name}
                   onChange={handleInputChange}

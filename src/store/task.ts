@@ -8,7 +8,8 @@ import {
   SubTaskTogglePayload,
   TaskApiResponse,
   AIGenerateSubtasksPayload,
-  AIGenerateSubtasksResponse
+  AIGenerateSubtasksResponse,
+  SubTaskUpdateStatusPayload
 } from "./task.interface";
 import toast from "react-hot-toast";
 
@@ -152,6 +153,23 @@ export const addSubTask = async (payload: SubTaskCreatePayload): Promise<TaskApi
   }
 };
 
+export const updateSubTaskStatus = async (id: string, payload: SubTaskUpdateStatusPayload): Promise<TaskApiResponse | null> => {
+  try {
+    const response = await fetch(API_ROUTES.TASK.SUBTASK_UPDATE_STATUS(id), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      credentials: "include"
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error("SERVER ERROR: ", error);
+    return null;
+  }
+};
+
 export const toggleSubTask = async (id: string, payload: SubTaskTogglePayload): Promise<TaskApiResponse | null> => {
   try {
     const response = await fetch(API_ROUTES.TASK.SUBTASK_TOGGLE(id), {
@@ -183,6 +201,7 @@ export const deleteSubTask = async (id: string): Promise<TaskApiResponse | null>
     return null;
   }
 };
+
 
 
 //ai task api function

@@ -16,30 +16,30 @@ interface CardData {
 
 const cards: CardData[] = [
   {
-    company: "Bedquest",
+    company: "Smart Attendance",
     image: "/crm-sliderImage.jfif",
-    title: "We Made A Community Mural With AI",
+    title: "AI-Powered Time Tracking",
     description:
-      "Using tools like geofencing and keyword retargeting, we target customers based on location and behavior, ensuring every impression counts.",
-    tags: ["CEO", "SEO", "Branding"],
+      "Log your shifts seamlessly from any device. Our intelligent system ensures your hours are tracked accurately and helps prevent missed clock-outs.",
+    tags: ["AI Tracking", "Live Sync", "Timesheets"],
     link: "#",
   },
   {
-    company: "Apple",
-    image: "\crm-siderImage7.png",
-    title: "Reimagining Retail Experience",
+    company: "Leave Management",
+    image: "/crm-siderImage7.png",
+    title: "Intelligent Status Requests",
     description:
-      "Apple redefined in-store customer interactions using AR and personalized AI assistants.",
-    tags: ["AR", "UX", "Retail"],
+      "Not coming in today? Submit WFH or Leave requests in seconds. Our automated routing speeds up admin reviews and updates your availability instantly.",
+    tags: ["Automation", "WFH", "Approvals"],
     link: "#",
   },
   {
-    company: "Google",
+    company: "Employee Portal",
     image: "/crm-sliderImage22.webp",
-    title: "AI-Powered Workspace Tools",
+    title: "AI-Driven Weekly Insights",
     description:
-      "Google Workspace now leverages AI to automate workflow and increase team productivity.",
-    tags: ["AI", "Cloud", "Productivity"],
+      "Track your attendance streaks, review your total hours, and get personalized insights into your work patterns all in one unified dashboard.",
+    tags: ["AI Analytics", "Insights", "Dashboard"],
     link: "#",
   },
 ];

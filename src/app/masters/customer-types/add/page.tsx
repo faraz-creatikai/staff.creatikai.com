@@ -15,6 +15,7 @@ import SaveButton from "@/app/component/buttons/SaveButton";
 import ObjectSelect from "@/app/component/ObjectSelect";
 import { handleFieldOptionsObject } from "@/app/utils/handleFieldOptionsObject";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 interface ErrorInterface {
   [key: string]: string;
@@ -27,6 +28,8 @@ export default function CustomerTypeAdd() {
     Status: "",
   }));
   const [fieldOptions, setFieldOptions] = useState<Record<string, any[]>>({});
+    const { getLabel, labels } = useCustomerFieldLabel();
+            
 
   useEffect(() => {
     fetchFields();
@@ -53,7 +56,7 @@ export default function CustomerTypeAdd() {
   const validateForm = () => {
     const newErrors: ErrorInterface = {};
     if (!typeData.Campaign.trim()) newErrors.Campaign = "Campaign is required";
-    if (!typeData.Name.trim()) newErrors.Name = "Customer Type Name is required";
+    if (!typeData.Name.trim()) newErrors.Name = "type Name is required";
     if (!typeData.Status.trim()) newErrors.Status = "Status is required";
     return newErrors;
   };
@@ -68,12 +71,12 @@ export default function CustomerTypeAdd() {
 
     const result = await addTypes(typeData);
     if (result) {
-      toast.success("Customer Type added successfully!");
+      toast.success("type added successfully!");
       router.push("/masters/customer-types");
       return;
     }
 
-    toast.error("Failed to add Customer Type");
+    toast.error("Failed to add type");
 
 
   };
@@ -114,7 +117,7 @@ export default function CustomerTypeAdd() {
           <form onSubmit={(e) => e.preventDefault()} className="w-full">
             <div className="mb-8 text-left border-b pb-4 border-gray-200">
               <h1 className="text-3xl font-extrabold text-[var(--color-secondary-darker)] leading-tight tracking-tight">
-                Add <span className="text-[var(--color-primary)]">Customer Type</span>
+                Add <span className="text-[var(--color-primary)]">   {getLabel("CustomerType","Type")}</span>
               </h1>
             </div>
 
@@ -136,9 +139,9 @@ export default function CustomerTypeAdd() {
                 />
 
 
-                {/* Customer Type Name */}
+                {/* type Name */}
                 <InputField
-                  label="Customer Type Name"
+                  label="type Name"
                   name="Name"
                   value={typeData.Name}
                   onChange={handleInputChange}

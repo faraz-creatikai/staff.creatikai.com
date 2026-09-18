@@ -39,6 +39,7 @@ import { RiFilePaper2Fill } from "react-icons/ri";
 import { GrConfigure } from "react-icons/gr";
 import { sidebarLogoPath } from "@/app/data/PlatformData";
 import BrandLogo from "@/app/component/labels/BrandLogo";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 // This is sample data.
 const data = {
@@ -63,6 +64,38 @@ const data = {
       url: "/attendance",
       icon: Clock,
     },
+
+    /* {
+      title: "Employee Enquiry",
+      url: "/customer/enquiry",
+      icon: Info,
+    }, */
+        {
+      title: "Task",
+      url: "/task",
+      icon: Pointer,
+    },
+    {
+      title: "Schedules",
+      url: "/schedules",
+      icon: PenSquareIcon,
+    },
+    {
+      title: "Ai Agents",
+      url: "/aiagents",
+      icon: FaRobot,
+    },
+    {
+      title: "Sales Script",
+      url: "/salesscript",
+      icon: RiFilePaper2Fill
+    },
+
+    {
+      title: "Social Media Manager",
+      url: "/socialmedia-manager",
+      icon: TbSocial
+    },
     {
       title: "Contact",
       url: "/contact",
@@ -72,56 +105,6 @@ const data = {
       title: "Contact Follow Up",
       url: "/followups/contact",
       icon: PlusSquare,
-    },
-    {
-      title: "External Leads",
-      url: "/minedlead",
-      icon: ExternalLink,
-    },
-        {
-      title: "Clients",
-      url: "/clients",
-      icon: UsersIcon,
-    },
-    {
-      title: "Company Project",
-      url: "/company_project",
-      icon: User,
-    },
-    {
-      title: "Company Project Enquiry",
-      url: "/company_project/enquiry",
-      icon: Info,
-    },
-    /* {
-      title: "Customer Enquiry",
-      url: "/customer/enquiry",
-      icon: Info,
-    }, */
-    {
-      title: "Ai Agents",
-      url: "/aiagents",
-      icon: FaRobot,
-    },
-    {
-      title:"Sales Script",
-      url: "/salesscript",
-      icon: RiFilePaper2Fill
-    },
-    {
-      title: "Schedules",
-      url: "/schedules",
-      icon: PenSquareIcon,
-    },
-    {
-      title: "Task",
-      url: "/task",
-      icon: Pointer,
-    },
-    {
-      title:"Social Media Manager",
-      url:"/socialmedia-manager",
-      icon: TbSocial
     },
     {
       title: "Masters",
@@ -246,10 +229,10 @@ const data = {
       ],
     },
     {
-      title:" Reports",
+      title: " Reports",
       url: "#",
       icon: LineChart,
-      items:[
+      items: [
         {
           title: "Calling Report",
           url: "/reports/call-report",
@@ -270,33 +253,54 @@ const data = {
       url: "/favourites",
       icon: Home,
     },
+    /*   {
+        title: "E-commerce",
+        url: "#",
+        icon: ShoppingCart,
+        items: [
+          {
+            title: "Dashboard",
+            url: "/dashboard",
+          },
+          {
+            title: "Category",
+            url: "/category",
+          },
+          {
+            title: "Sub Category",
+            url: "/sub-category",
+          },
+          {
+            title: "Products",
+            url: "/product",
+          },
+          {
+            title: "Orders",
+            url: "/orders",
+          },
+        ],
+      }, */
     {
-      title: "E-commerce",
-      url: "#",
-      icon: ShoppingCart,
-      items: [
-        {
-          title: "Dashboard",
-          url: "/dashboard",
-        },
-        {
-          title: "Category",
-          url: "/category",
-        },
-        {
-          title: "Sub Category",
-          url: "/sub-category",
-        },
-        {
-          title: "Products",
-          url: "/product",
-        },
-        {
-          title: "Orders",
-          url: "/orders",
-        },
-      ],
+      title: "External Leads",
+      url: "/minedlead",
+      icon: ExternalLink,
     },
+    {
+      title: "Clients",
+      url: "/clients",
+      icon: UsersIcon,
+    },
+    {
+      title: "Company Project",
+      url: "/company_project",
+      icon: User,
+    },
+    {
+      title: "Company Project Enquiry",
+      url: "/company_project/enquiry",
+      icon: Info,
+    },
+
     {
       title: "Settings",
       url: "#",
@@ -313,27 +317,27 @@ const data = {
       ]
     },
     {
-      title:"Configuration",
-      url:"#",
+      title: "Configuration",
+      url: "#",
       icon: GrConfigure,
-      items:[
+      items: [
         {
-          title:"AI",
-          url:"/configuration/ai"
+          title: "AI",
+          url: "/configuration/ai"
         },
         {
           title: "Tabbly",
           url: "/configuration/tabbly",
         },
         {
-          title:"whatsapp",
-          url:"/configuration/whatsapp"
+          title: "whatsapp",
+          url: "/configuration/whatsapp"
         },
         {
-          title:"system",
-          url:"/configuration/system"
+          title: "system",
+          url: "/configuration/system"
         }
-        
+
       ]
     },
     {
@@ -352,7 +356,7 @@ const data = {
       url: "/imports/contact",
       icon: MessageSquare,
     },
-    
+
     /* 
     {
       title: "Contact Report",
@@ -370,20 +374,52 @@ const data = {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { state } = useSidebar();
   const { admin, isLoading } = useAuth();
+  const { getLabel, labels } = useCustomerFieldLabel();
+  const navMainWithLabels = data.navMain.map((item) => {
+    if (item.title !== "Masters") return item;
+
+    return {
+      ...item,
+      items: item.items?.map((subItem) => {
+        if (subItem.url === "/masters/campaign") {
+          return {
+            ...subItem,
+            title: getLabel("Campaign", "Campaign"),
+          };
+        }
+
+        if (subItem.url === "/masters/customer-types") {
+          return {
+            ...subItem,
+            title: getLabel("CustomerType", "Type"),
+          };
+        }
+
+        if (subItem.url === "/masters/customer-subtype") {
+          return {
+            ...subItem,
+            title: getLabel("CustomerSubType", "Subtype"),
+          };
+        }
+
+        return subItem;
+      }),
+    };
+  });
   if (isLoading) return null;
 
-  const filteredNavItems = data.navMain.filter((item) => {
+  const filteredNavItems = navMainWithLabels.filter((item) => {
     // Hide "Masters" if not admin
     if (item.title === "Masters" && admin?.role !== "administrator") {
       return false;
     }
-    if(item.title === "Clients" && admin?.role !== "administrator"){
+    if (item.title === "Clients" && admin?.role !== "administrator") {
       return false;
     }
-    if(item.title === "Ai Agents" && admin?.role !== "administrator"){
+    if (item.title === "Ai Agents" && admin?.role !== "administrator") {
       return false;
     }
-    if(item.title === "Configuration" && admin?.role !== "administrator"){
+    if (item.title === "Configuration" && admin?.role !== "administrator") {
       return false
     }
     return true;
@@ -409,25 +445,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   });
   return (
     <Sidebar collapsible="icon" className="" {...props}>
-     <SidebarHeader
-  className={`flex items-center py-1 justify-center ${
-    state === "collapsed"
-      ? "bg-white dark:bg-[var(--color-secondary-darker)] py-4"
-      : "bg-gray-100"
-  }`}
->
-  {state === "collapsed" ? (
-    <BrandLogo
-      variant="icon"
-      className="h-8 w-8 object-contain"
-    />
-  ) : (
-    <BrandLogo
-      variant="text"
-      className="h-12 w-40 object-contain"
-    />
-  )}
-</SidebarHeader>
+      <SidebarHeader
+        className={`flex items-center py-1 justify-center ${state === "collapsed"
+          ? "bg-white dark:bg-[var(--color-secondary-darker)] py-4"
+          : "bg-gray-100"
+          }`}
+      >
+        {state === "collapsed" ? (
+          <BrandLogo
+            variant="icon"
+            className="h-8 w-8 object-contain"
+          />
+        ) : (
+          <BrandLogo
+            variant="text"
+            className="h-12 w-40 object-contain"
+          />
+        )}
+      </SidebarHeader>
       <SidebarContent>
         <NavMain items={filteredNavItems} />
       </SidebarContent>

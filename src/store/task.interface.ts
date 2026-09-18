@@ -33,6 +33,11 @@ export interface SubTaskTogglePayload {
   isCompleted: boolean;
 }
 
+
+export interface SubTaskUpdateStatusPayload {
+  status: TaskStatus;
+}
+
 // --- GENERIC RESPONSE ---
 export interface TaskApiResponse<T = unknown> {
   success: boolean;

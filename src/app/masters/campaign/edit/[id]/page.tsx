@@ -11,6 +11,7 @@ import { campaignAllDataInterface } from "@/store/masters/campaign/campaign.inte
 import BackButton from "@/app/component/buttons/BackButton";
 import SaveButton from "@/app/component/buttons/SaveButton";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 interface ErrorInterface {
   [key: string]: string;
@@ -27,6 +28,9 @@ export default function CampaignEdit() {
 
   const [errors, setErrors] = useState<ErrorInterface>({});
   const [loading, setLoading] = useState(true);
+
+    const { getLabel, labels } = useCustomerFieldLabel();
+  
 
   // 🟩 Fetch Campaign by ID
   useEffect(() => {
@@ -68,7 +72,7 @@ export default function CampaignEdit() {
   // 🟩 Validate Form
   const validateForm = () => {
     const newErrors: ErrorInterface = {};
-    if (!campaignData.Name.trim()) newErrors.Name = "Campaign Name is required";
+    if (!campaignData.Name.trim()) newErrors.Name = "name is required";
     if (!campaignData.Status.trim()) newErrors.Status = "Status is required";
     return newErrors;
   };
@@ -124,15 +128,15 @@ export default function CampaignEdit() {
           <form onSubmit={(e) => e.preventDefault()} className="w-full">
             <div className="mb-8 text-left border-b pb-4 border-gray-200">
               <h1 className="text-3xl font-extrabold text-[var(--color-secondary-darker)] leading-tight tracking-tight">
-                Edit <span className="text-[var(--color-primary)]">Campaign</span>
+                Edit <span className="text-[var(--color-primary)]">{getLabel("Campaign","Campaign")}</span>
               </h1>
             </div>
 
             <div className="flex flex-col space-y-6">
               <div className="grid grid-cols-2 gap-6 max-lg:grid-cols-1">
-                {/* Campaign Name */}
+                {/* name */}
                 <InputField
-                  label="Campaign Name"
+                  label="name"
                   name="Name"
                   value={campaignData.Name}
                   onChange={handleInputChange}

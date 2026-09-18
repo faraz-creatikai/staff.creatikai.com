@@ -33,6 +33,32 @@ export const getDashboardStatsCount = async () => {
   }
 }
 
+export const getEmployeeDistributionData = async (groupBy: string = 'Campaign') => {
+  try {
+    const response = await fetch(API_ROUTES.CUSTOMER.DISTRIBUTION_COUNT(groupBy), {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("SERVER ERROR: ", error);
+    return null;
+  }
+};
+
+export const getEmployeeHighlightsData = async () => {
+  try {
+    const response = await fetch(API_ROUTES.CUSTOMER.EMPLOYEE_HIGHLIGHTS, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error("SERVER ERROR: ", error);
+    return null;
+  }
+};
+
 export const getLeadSourcesStats = async () => {
   try {
     const response = await fetch(API_ROUTES.CUSTOMER.LEADSOURCE_STATS, { credentials: "include" });

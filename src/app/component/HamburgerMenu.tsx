@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { BrickWallFire, Podcast, School, Cable, ShieldUser, NotebookTabs, Home } from "lucide-react";
+import { BrickWallFire, Podcast, School, Cable, ShieldUser, NotebookTabs, Home, User, Star } from "lucide-react";
 
 import Link from "next/link";
 import { MdClose } from "react-icons/md";
@@ -10,11 +10,15 @@ import { TfiClose } from "react-icons/tfi";
 import { useAuth } from "@/context/AuthContext";
 import { RiFilePaper2Fill } from "react-icons/ri";
 import BrandLogo from "./labels/BrandLogo";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
+import { FaCalendar } from "react-icons/fa";
 
 export default function MobileHamburger() {
 
 
   const { admin, isLoading, login } = useAuth();
+
+  const { getLabel, labels } = useCustomerFieldLabel();
   const data = [
     {
       title: "Dashboard",
@@ -22,44 +26,29 @@ export default function MobileHamburger() {
       icon: <Home size={22} />,
     },
     {
-      title: "Campaign",
+      title: getLabel("Campaign", "Campaign"),
       url: `${admin?.role !== "administrator" ? "/masters/campaign/allcampaigns" : "/masters/campaign"}`,
       icon: <BrickWallFire size={22} />,
     },
     {
-      title: "Customer",
+      title: "Employee",
       url: "/customer",
-      icon: <Podcast size={22} />,
+      icon: <User size={22} />,
     },
-    {
-      title: "FollowUp",
-      url: "/followups/customer",
-      icon: <School size={22} />,
-    },
-    {
-      title: "Contact",
-      url: "/contact",
-      icon: <Podcast size={22} />,
-    },
-    {
-      title: "Contact FollowUp",
-      url: "/followups/contact",
-      icon: <School size={22} />,
-    },
-    {
-      title: "Status Type",
-      url: "/masters/status-type",
-      icon: <NotebookTabs size={22} />,
-    },
-    {
-      title: "Favroites",
-      url: "/favourites",
-      icon: <Cable size={22} />,
+        {
+      title: "Attendance",
+      url: `/attendance`,
+      icon: <FaCalendar size={22} />
     },
     {
       title: "Task",
       url: "/task",
       icon: <ShieldUser size={22} />,
+    },
+        {
+      title: "Favroites",
+      url: "/favourites",
+      icon: <Star size={22} />,
     },
     {
       title: "Sales Script",
@@ -70,7 +59,28 @@ export default function MobileHamburger() {
       title: " Report",
       url: `/reports/activity`,
       icon: <BrickWallFire size={22} />
-    }
+    },
+
+        {
+      title: "FollowUp",
+      url: "/followups/customer",
+      icon: <School size={22} />,
+    },
+        {
+      title: "Status Type",
+      url: "/masters/status-type",
+      icon: <NotebookTabs size={22} />,
+    },
+        {
+      title: "Contact",
+      url: "/contact",
+      icon: <Podcast size={22} />,
+    },
+    {
+      title: "Contact FollowUp",
+      url: "/followups/contact",
+      icon: <School size={22} />,
+    },
 
   ]
   const [open, setOpen] = useState(false);
@@ -210,10 +220,10 @@ export default function MobileHamburger() {
             >
               <div className="flex flex-col max-h-screen overflow-y-auto p-5 gap-5">
                 <div className=" self-start mb-2">
-                 <BrandLogo
-                       variant="text"
-                       className="h-12 w-40 object-contain"
-                     />
+                  <BrandLogo
+                    variant="text"
+                    className="h-12 w-40 object-contain"
+                  />
                 </div>
                 {data.map((item, index) => (
                   <Link

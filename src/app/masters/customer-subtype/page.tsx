@@ -13,6 +13,7 @@ import { deleteAllSubtype, deleteSubtype, getSubtype } from "@/store/masters/sub
 import AddButton from "@/app/component/buttons/AddButton";
 import PageHeader from "@/app/component/labels/PageHeader";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 interface DeleteAllDialogDataInterface { }
 
@@ -30,6 +31,8 @@ export default function CustomerSubtypePage() {
   const [rowsPerTablePage, setRowsPerTablePage] = useState(10);
   const [selectedSubTypes, setSelectedSubTypes] = useState<string[]>([]);
   const router = useRouter();
+    const { getLabel, labels } = useCustomerFieldLabel();
+              
 
   const fetchSubtypes = async () => {
     const data = await getSubtype();
@@ -85,13 +88,13 @@ export default function CustomerSubtypePage() {
     if (!data) return;
     const res = await deleteSubtype(data.id);
     if (res) {
-      toast.success("Customer Subtype deleted successfully!");
+      toast.success("subtype deleted successfully!");
       setIsDeleteDialogOpen(false);
       setDeleteDialogData(null);
       fetchSubtypes();
       return;
     }
-    toast.error("Failed to delete Customer Subtype.");
+    toast.error("Failed to delete subtype.");
   };
 
   const handleDeleteAll = async () => {
@@ -156,7 +159,7 @@ export default function CustomerSubtypePage() {
         />
 
         <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 relative">
-          <PageHeader title="Dashboard" subtitles={["Customer Subtype"]} />
+          <PageHeader title="Dashboard" subtitles={[`${getLabel("CustomerSubType","Subtype")}`]} />
           <AddButton
             url="/masters/customer-subtype/add"
             text="Add"
@@ -236,7 +239,7 @@ export default function CustomerSubtypePage() {
                     <p className="w-[60px]">S.No.</p>
                     <p className="w-[160px]">Campaign</p>
                     <p className="w-[160px]">Customer Type</p>
-                    <p className="w-[200px]">Customer Subtype</p>
+                    <p className="w-[200px]">subtype</p>
                   </th>
 
                   <th className="flex items-center gap-10 px-8 py-3 border border-[var(--color-secondary-dark)] text-left w-1/3 justify-end">
@@ -294,7 +297,7 @@ export default function CustomerSubtypePage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="text-center py-4 text-gray-500">No customer subtypes found.</td>
+                    <td colSpan={5} className="text-center py-4 text-gray-500">No subtypes found.</td>
                   </tr>
                 )}
               </tbody>

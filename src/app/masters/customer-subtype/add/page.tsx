@@ -16,6 +16,7 @@ import SaveButton from "@/app/component/buttons/SaveButton";
 import { handleFieldOptionsObject } from "@/app/utils/handleFieldOptionsObject";
 import ObjectSelect from "@/app/component/ObjectSelect";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 
 
@@ -38,6 +39,8 @@ export default function CustomerSubtypeAdd() {
     const [fieldOptions, setFieldOptions] = useState<Record<string, any[]>>({});
     const [campaignId, setCampaignId] = useState<string | null>();
     const [customerTypesOptions, setCustomerTypesOptions] = useState<string[] | null>([]);
+      const { getLabel, labels } = useCustomerFieldLabel();
+               
 
     useEffect(() => {
         fetchFields();
@@ -58,7 +61,7 @@ export default function CustomerSubtypeAdd() {
     const validateForm = () => {
         const newErrors: ErrorInterface = {};
         if (!data.Campaign.trim()) newErrors.Campaign = "Campaign is required";
-        if (!data.CustomerType.trim()) newErrors.CustomerType = "Customer Type is required";
+        if (!data.CustomerType.trim()) newErrors.CustomerType = `${getLabel("CustomerType","Type")} is required`;
         if (!data.Name.trim()) newErrors.Name = "Subtype Name is required";
         if (!data.Status.trim()) newErrors.Status = "Status is required";
         return newErrors;
@@ -75,12 +78,12 @@ export default function CustomerSubtypeAdd() {
         const res = await addSubtype(data);
         console.log("res", res)
         if (res) {
-            toast.success("Customer Subtype added successfully!");
+            toast.success("subtype added successfully!");
             router.push("/masters/customer-subtype");
             return;
         }
 
-        toast.error("Failed to add Customer Subtype");
+        toast.error("Failed to add subtype");
 
 
     };
@@ -149,7 +152,7 @@ export default function CustomerSubtypeAdd() {
                 <div className="bg-white/90 backdrop-blur-lg p-10 w-full rounded-3xl shadow-2xl">
                     <form onSubmit={(e) => e.preventDefault()} className="w-full">
                         <div className="mb-8 text-left border-b pb-4 border-gray-200">
-                            <h1 className="text-3xl font-extrabold text-[var(--color-secondary-darker)]">Add <span className="text-[var(--color-primary)]">Customer Subtype</span></h1>
+                            <h1 className="text-3xl font-extrabold text-[var(--color-secondary-darker)]">Add <span className="text-[var(--color-primary)]">{getLabel("CustomerSubType","Subtype")}</span></h1>
                         </div>
 
                         <div className="flex flex-col space-y-6">
@@ -169,7 +172,7 @@ export default function CustomerSubtypeAdd() {
                                 {/* <SingleSelect options={Array.isArray(fieldOptions?.CustomerTypes) ? fieldOptions.CustomerTypes : []} label="Customer Type" value={data.CustomerType} onChange={(v) => handleSelectChange("CustomerType", v)} /> */}
                                 <ObjectSelect
                                     options={Array.isArray(fieldOptions?.CustomerTypes) ? fieldOptions.CustomerTypes : []}
-                                    label="Customer Type"
+                                    label={`${getLabel("CustomerType","Type")}`}
                                     value={data.CustomerType}
                                     getLabel={(item) => item?.Name || ""}
                                     getId={(item) => item?._id || ""}

@@ -16,6 +16,7 @@ import PageHeader from "@/app/component/labels/PageHeader";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
 import LeadStatus from "@/app/phonescreens/DashboardScreens/LeadStatus";
 import CampaignFilter from "@/app/phonescreens/DashboardScreens/CampaignFilter";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 /* import { getCampaigns, deleteCampaign } from "@/store/campaigns"; */ // you'll create these API helpers
 
@@ -29,6 +30,8 @@ export default function CampaignPage() {
     const [deleteDialogData, setDeleteDialogData] = useState<DeleteDialogDataInterface | null>(null);
     const [currentTablePage, setCurrentTablePage] = useState(1);
     const [rowsPerTablePage,setRowsPerTablePage]=useState(10);
+      const { getLabel, labels } = useCustomerFieldLabel();
+      
     const router = useRouter();
 
     // Fetch campaigns from API
@@ -102,7 +105,7 @@ export default function CampaignPage() {
         <MasterProtectedRoute>
             <Toaster position="top-right" />
             <div className=" sm:hidden py-2">
-                <h1 className=" text-[var(--color-primary)] font-bold text-2xl px-0 py-0">Campaign</h1>
+                <h1 className=" text-[var(--color-primary)] font-bold text-2xl px-0 py-0">{getLabel("Campaign","Campaign")}</h1>
                 <CampaignFilter leadStatuses={campaigns.map((item) => ({ name: item.Name }))} />
             </div>
             <div className="min-h-[calc(100vh-56px)] overflow-auto max-md:py-10 max-sm:hidden">
@@ -124,7 +127,7 @@ export default function CampaignPage() {
 
                 {/* Card Container */}
                 <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 relative">
-                    <PageHeader title="Dashboard" subtitles={["Campaign"]} />
+                    <PageHeader title="Dashboard" subtitles={[`${getLabel("Campaign","Campaign")}`]} />
                     {/* Add Button */}
                    
                     <AddButton
@@ -143,7 +146,7 @@ export default function CampaignPage() {
                             <input
                                 id="keyword"
                                 type="text"
-                                placeholder="Search by campaign name..."
+                                placeholder="Search by name..."
                                 value={keyword}
                                 onChange={(e) => setKeyword(e.target.value)}
                                 className="w-full outline-none border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-800"

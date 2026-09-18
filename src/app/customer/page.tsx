@@ -2681,7 +2681,7 @@ export default function Customer() {
       <div className=" sm:hidden min-h-[calc(100vh-56px)] overflow-auto max-sm:py-2">
 
         <div className="flex justify-between items-center px-0">
-          <h1 className="text-[var(--color-primary)] font-extrabold text-2xl">Leads</h1>
+          <h1 className="text-[var(--color-primary)] font-extrabold text-2xl">Employees</h1>
 
           <button
             onClick={() => router.push("/customer/archieved")}

@@ -23,6 +23,8 @@ export const API_ROUTES = {
   },
   CUSTOMER: {
     DASHBOARD_STATS_COUNT:`${BASE_URL}/customer/dashboard/stats-count`,
+    DISTRIBUTION_COUNT: (groupby: string) => `${BASE_URL}/customer/dashboard/distribution?groupBy=${groupby}`,
+    EMPLOYEE_HIGHLIGHTS: `${BASE_URL}/customer/dashboard/employee/highlights`,
     LEADSOURCE_STATS: `${BASE_URL}/customer/dashboard/lead-source-stats`,
     LEADTEMPERATURE_STATS:`${BASE_URL}/customer/dashboard/lead-temperature-stats`,
     VISITER_CHART_STATS:`${BASE_URL}/customer/dashboard/visiter-chart-stats`,
@@ -96,6 +98,8 @@ export const API_ROUTES = {
     
     // Allows filtering, e.g., params = "month=2026-09&employeeId=123&limit=50&skip=0"
     GET_ADMIN_REPORT_BY_PARAMS: (params: string) => `${BASE_URL}/attendance/admin/report?${params}`,
+    GET_ATTENDANCE_TREND: (startDate:string, endDate:string) => `${BASE_URL}/attendance/trend?startDate=${startDate}&endDate=${endDate}`,
+    GET_ATTENDANCE_OVERVIEW: (startDate:string, endDate:string) => `${BASE_URL}/attendance/overview?startDate=${startDate}&endDate=${endDate}`
     
   },
   COMPANYPROJECTS: {
@@ -152,6 +156,7 @@ TASK: {
     // -----------------------------------------
     EMPLOYEE_GET_ALL: `${BASE_URL}/task/employee`,
     EMPLOYEE_UPDATE_STATUS: (id: string) => `${BASE_URL}/task/employee/${id}/status`,
+    SUBTASK_UPDATE_STATUS: (id: string) => `${BASE_URL}/task/employee/subtask/${id}/status`,
 
     // -----------------------------------------
     // SUBTASK ROUTES (Staff Workspace)

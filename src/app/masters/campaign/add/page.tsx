@@ -11,6 +11,7 @@ import { addCampaign } from "@/store/masters/campaign/campaign";
 import BackButton from "@/app/component/buttons/BackButton";
 import SaveButton from "@/app/component/buttons/SaveButton";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 
 interface ErrorInterface {
@@ -25,6 +26,8 @@ export default function CampaignAdd() {
 
   const [errors, setErrors] = useState<ErrorInterface>({});
   const router = useRouter();
+  const { getLabel, labels } = useCustomerFieldLabel();
+
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,7 +47,7 @@ export default function CampaignAdd() {
 
   const validateForm = () => {
     const newErrors: ErrorInterface = {};
-    if (!campaignData.Name.trim()) newErrors.Name = "Campaign Name is required";
+    if (!campaignData.Name.trim()) newErrors.Name = "Name is required";
     if (!campaignData.Status.trim()) newErrors.Status = "Status is required";
     return newErrors;
   };
@@ -91,15 +94,15 @@ export default function CampaignAdd() {
           <form onSubmit={(e) => e.preventDefault()} className="w-full">
             <div className="mb-8 text-left border-b pb-4 border-gray-200">
               <h1 className="text-3xl font-extrabold text-[var(--color-secondary-darker)] leading-tight tracking-tight">
-                Add <span className="text-[var(--color-primary)]">Campaign</span>
+                Add <span className="text-[var(--color-primary)]">{getLabel("Campaign","Campaign")}</span>
               </h1>
             </div>
 
             <div className="flex flex-col space-y-6">
               <div className="grid grid-cols-2 gap-6 max-lg:grid-cols-1">
-                {/* Campaign Name */}
+                {/* Name */}
                 <InputField
-                  label="Campaign Name"
+                  label="Name"
                   name="Name"
                   value={campaignData.Name}
                   onChange={handleInputChange}

@@ -17,6 +17,7 @@ import DeleteDialog from "@/app/component/popups/DeleteDialog";
 import AddButton from "@/app/component/buttons/AddButton";
 import PageHeader from "@/app/component/labels/PageHeader";
 import MasterProtectedRoute from "@/app/component/MasterProtectedRoutes";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
 
 interface DeleteAllDialogDataInterface { }
 
@@ -34,6 +35,8 @@ export default function CustomerTypePage() {
   const [rowsPerTablePage, setRowsPerTablePage] = useState(10);
   const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const router = useRouter();
+   const { getLabel, labels } = useCustomerFieldLabel();
+   
 
   const fetchTypes = async () => {
     const data = await getTypes();
@@ -87,13 +90,13 @@ export default function CustomerTypePage() {
     if (!data) return;
     const res = await deleteTypes(data.id);
     if (res) {
-      toast.success("Customer Type deleted successfully!");
+      toast.success("type deleted successfully!");
       setIsDeleteDialogOpen(false);
       setDeleteDialogData(null);
       fetchTypes();
       return;
     }
-    toast.error("Failed to delete Customer Type.");
+    toast.error("Failed to delete type.");
   };
 
   const handleEdit = (id?: string) => {
@@ -159,7 +162,7 @@ export default function CustomerTypePage() {
 
         {/* Card Container */}
         <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 relative">
-          <PageHeader title="Dashboard" subtitles={["Customer Type"]} />
+          <PageHeader title="Dashboard" subtitles={[`${getLabel("CustomerType","Type")}`]} />
           {/* Add Button */}
 
           <AddButton
@@ -344,7 +347,7 @@ export default function CustomerTypePage() {
                       colSpan={4}
                       className="text-center py-4 text-gray-500"
                     >
-                      No customer types found.
+                      No types found.
                     </td>
                   </tr>
                 )}

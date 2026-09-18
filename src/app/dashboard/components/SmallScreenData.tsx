@@ -1,52 +1,57 @@
 "use client";
 
-import { BrickWallFire, Podcast, School, Cable, ShieldUser, NotebookTabs } from "lucide-react";
+import { BrickWallFire, Podcast, School, Cable, ShieldUser, NotebookTabs, Star } from "lucide-react";
 import ImageSlider from "./ImageSlider";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
+import { useCustomerFieldLabel } from "@/context/customer/CustomerFieldLabelContext";
+import { FaCalendar, FaTasks, FaUser } from "react-icons/fa";
 const SmallScreenData = () => {
  const { admin, isLoading, login } = useAuth();
+     const { getLabel, labels } = useCustomerFieldLabel();
+       
 
   const boxeButtons = [
     {
-      pTag: "Campigns",
+      pTag: getLabel("Campaign","Campaign"),
       icon: <BrickWallFire size={34} />,
       color: " backdrop-blur-[2px] bg-red-600",
       url: `${admin?.role!=="administrator"?"/masters/campaign/allcampaigns":"/masters/campaign"}`
 
     },
     {
-      pTag: "Customer",
-      icon: <Podcast size={34} />,
+      pTag: "Employee",
+      icon: <FaUser size={34} />,
       color: "backdrop-blur-[2px] bg-purple-600",
       url: "/customer"
 
     },
     {
-      pTag: "Followups",
-      icon: <School size={34} />,
+      pTag: "Task",
+      icon: <FaTasks size={34} />,
       color: "backdrop-blur-[2px] bg-teal-600",
-      url: "/followups/customer"
+      url: "/task"
 
     },
+       {
+      pTag: "Attendance",
+      icon: <FaCalendar size={34} />,
+      color: " backdrop-blur-[2px] bg-green-600",
+      url: "/attendance"
+
+    }, 
     {
       pTag: "Favorites",
-      icon: <ShieldUser size={34} />,
+      icon: <Star size={34} />,
       color: " backdrop-blur-[2px] bg-blue-600",
       url: "/favourites"
 
     },
-    {
+ {
       pTag: "Report",
-      icon: <Cable size={34} />,
-      color: " backdrop-blur-[2px] bg-green-600",
-      url: "/reports/activity"
-
-    }, {
-      pTag: "Status Type",
       icon: <NotebookTabs size={34} />,
       color: "backdrop-blur-[2px] bg-gray-600",
-      url: "/masters/status-type"
+      url: "/reports/activity"
     },
   ];
 

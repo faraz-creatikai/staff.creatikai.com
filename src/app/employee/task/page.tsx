@@ -8,8 +8,6 @@ import {
   CheckCircle2,
   Plus,
   Trash2,
-  CheckSquare,
-  Square,
   Filter,
   XCircle,
   AlertTriangle,
@@ -17,15 +15,15 @@ import {
   X,
   ChevronRight,
   ChevronDown,
+  ListChecks,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
 // --- API IMPORTS ---
 import {
-  getEmployeeTasks, // Make sure this accepts params: getEmployeeTasks(params?: string)
-  updateEmployeeTaskStatus,
+  getEmployeeTasks, 
   addSubTask,
-  toggleSubTask,
+  updateSubTaskStatus, // NEW: Make sure this is exported from your store/task.ts
   deleteSubTask,
 } from "@/store/task";
 
@@ -36,18 +34,18 @@ interface SubTaskItem {
   id: string;
   title: string;
   description?: string | null;
-  isCompleted: boolean;
+  status: TaskStatus; // NEW: Status moved here
 }
 
 interface EmployeeTaskItem {
   id: string;
   title: string;
   description: string;
-  status: TaskStatus;
   priority: TaskPriority;
   dueDate: string | null;
   createdBy: { name: string; role: string };
   subTasks: SubTaskItem[];
+  // Note: status is completely removed from parent
 }
 
 // --- STATIC META / LOOKUPS ---
@@ -55,14 +53,12 @@ const STATUS_META: Record<TaskStatus, { label: string; badge: string }> = {
   todo: { label: "To Do", badge: "bg-gray-100 text-gray-600 border-gray-200" },
   in_progress: {
     label: "In Progress",
-    badge:
-      "bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)] border-[var(--color-primary-light)]",
+    badge: "bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)] border-[var(--color-primary-light)]",
   },
   under_review: { label: "Review", badge: "bg-purple-50 text-purple-700 border-purple-200" },
   completed: { label: "Completed", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
 };
 const STATUS_ORDER: TaskStatus[] = ["todo", "in_progress", "under_review", "completed"];
-const STATUS_FILTER_OPTIONS: (TaskStatus | "all")[] = ["all", ...STATUS_ORDER];
 
 const PRIORITY_META: Record<TaskPriority, { label: string; text: string; accent: string }> = {
   low: { label: "Low", text: "text-gray-500", accent: "bg-gray-300" },
@@ -86,35 +82,27 @@ const DATE_FILTER_LABELS: Record<string, string> = {
   upcoming: "Upcoming",
 };
 
-function statusFilterLabel(v: TaskStatus | "all") {
-  return v === "all" ? "All statuses" : STATUS_META[v].label;
-}
 function priorityFilterLabel(v: TaskPriority | "all") {
   return v === "all" ? "All priorities" : PRIORITY_META[v].label;
 }
-function isOverdue(task: EmployeeTaskItem) {
-  return !!task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "completed";
-}
+
+// Subtask Progress Calculation (100% if all subtasks are completed)
 function subTaskProgress(task: EmployeeTaskItem) {
-  if (task.subTasks.length === 0) return 0;
-  return Math.round((task.subTasks.filter((s) => s.isCompleted).length / task.subTasks.length) * 100);
+  if (!task.subTasks || task.subTasks.length === 0) return 0;
+  const completed = task.subTasks.filter((s) => s.status === 'completed').length;
+  return Math.round((completed / task.subTasks.length) * 100);
+}
+
+function isOverdue(task: EmployeeTaskItem) {
+  return !!task.dueDate && new Date(task.dueDate) < new Date() && subTaskProgress(task) < 100;
 }
 
 // --- SMALL PRESENTATIONAL PIECES ---
 function StatusBadge({ status }: { status: TaskStatus }) {
   const meta = STATUS_META[status];
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${meta.badge}`}>
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] tracking-wider uppercase font-bold border ${meta.badge}`}>
       {meta.label}
-    </span>
-  );
-}
-
-function StatusFilterBadge({ value }: { value: TaskStatus | "all" }) {
-  const badge = value === "all" ? "bg-gray-100 text-gray-600 border-gray-200" : STATUS_META[value].badge;
-  return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${badge}`}>
-      {statusFilterLabel(value)}
     </span>
   );
 }
@@ -207,19 +195,21 @@ export default function EmployeeTasksPage() {
   const [expandedSubtaskIds, setExpandedSubtaskIds] = useState<Set<string>>(new Set());
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
+  // Detail Modal Internal Subtask Filter
+  const [viewSubtaskFilter, setViewSubtaskFilter] = useState<TaskStatus | "all">("all");
+
   // Delete Subtask Modal State
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [subTaskToDelete, setSubTaskToDelete] = useState<{ taskId: string; subTaskId: string } | null>(null);
 
-  // Advanced Filters State (Server-Side)
+  // Advanced Filters State (Server-Side) - Status filter removed for Panel 1
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<TaskStatus | "all">("all");
   const [filterPriority, setFilterPriority] = useState<TaskPriority | "all">("all");
   const [filterDate, setFilterDate] = useState<"all" | "overdue" | "today" | "upcoming">("all");
   const [filterExactDate, setFilterExactDate] = useState<string>("");
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) || null;
-  const activeFilterCount = [filterStatus !== "all", filterPriority !== "all", filterDate !== "all", !!filterExactDate].filter(Boolean).length;
+  const activeFilterCount = [filterPriority !== "all", filterDate !== "all", !!filterExactDate].filter(Boolean).length;
 
   // --- SERVER-SIDE FETCHING ---
   const fetchFilteredTasks = async () => {
@@ -227,12 +217,10 @@ export default function EmployeeTasksPage() {
     try {
       const params = new URLSearchParams();
       if (searchQuery.trim()) params.append("search", searchQuery.trim());
-      if (filterStatus !== "all") params.append("status", filterStatus);
       if (filterPriority !== "all") params.append("priority", filterPriority);
       if (filterDate !== "all") params.append("date", filterDate);
       if (filterExactDate) params.append("exactDate", filterExactDate);
 
-      // Note: Ensure your getEmployeeTasks function is updated to accept the query string
       const res = await getEmployeeTasks(params.toString());
       if (res?.success) {
         setTasks((res.data as EmployeeTaskItem[]) || []);
@@ -244,15 +232,13 @@ export default function EmployeeTasksPage() {
     }
   };
 
-  // Debounce API calls for filters
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchFilteredTasks();
     }, 400);
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, filterStatus, filterPriority, filterDate, filterExactDate]);
+  }, [searchQuery, filterPriority, filterDate, filterExactDate]);
 
-  // Handle outside clicks for the filter panel
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (!(e.target as Element).closest(".custom-dropdown-container")) {
@@ -263,7 +249,6 @@ export default function EmployeeTasksPage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Escape key closes whatever overlay is topmost
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -280,7 +265,6 @@ export default function EmployeeTasksPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isDeleteModalOpen, selectedTaskId, openDropdown]);
 
-  // Lock body scroll while any overlay is open
   useEffect(() => {
     const anyOpen = isDeleteModalOpen || !!selectedTaskId || openDropdown === "filters";
     document.body.style.overflow = anyOpen ? "hidden" : "";
@@ -289,9 +273,9 @@ export default function EmployeeTasksPage() {
     };
   }, [isDeleteModalOpen, selectedTaskId, openDropdown]);
 
-  // Collapse the optional description field whenever the open task changes
   useEffect(() => {
     setShowAddDescription(false);
+    setViewSubtaskFilter("all"); // Reset subtask internal filter when opening a task
   }, [selectedTaskId]);
 
   const toggleSubtaskExpanded = (id: string) => {
@@ -305,26 +289,11 @@ export default function EmployeeTasksPage() {
 
   const clearFilters = () => {
     setSearchQuery("");
-    setFilterStatus("all");
     setFilterPriority("all");
     setFilterDate("all");
     setFilterExactDate("");
   };
 
-  // --- HANDLERS (Main Task) ---
-  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
-    // Optimistic UI update
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
-
-    try {
-      const res = await updateEmployeeTaskStatus(taskId, { status: newStatus });
-      if (!res?.success) throw new Error();
-      toast.success("Status updated");
-    } catch (error) {
-      toast.error("Failed to update status");
-      fetchFilteredTasks(); // Revert on failure
-    }
-  };
 
   // --- HANDLERS (Subtasks) ---
   const handleAddSubTask = async (e: React.FormEvent, taskId: string) => {
@@ -346,23 +315,24 @@ export default function EmployeeTasksPage() {
     }
   };
 
-  const handleToggleSubTask = async (taskId: string, subTaskId: string, currentStatus: boolean) => {
+  const handleSubTaskStatusChange = async (taskId: string, subTaskId: string, newStatus: TaskStatus) => {
+    setOpenDropdown(null);
     // Optimistic UI update
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== taskId) return t;
         return {
           ...t,
-          subTasks: t.subTasks.map((st) => (st.id === subTaskId ? { ...st, isCompleted: !currentStatus } : st)),
+          subTasks: t.subTasks.map((st) => (st.id === subTaskId ? { ...st, status: newStatus } : st)),
         };
       })
     );
 
     try {
-      const res = await toggleSubTask(subTaskId, { isCompleted: !currentStatus });
+      const res = await updateSubTaskStatus(subTaskId, { status: newStatus });
       if (!res?.success) throw new Error();
     } catch (error) {
-      toast.error("Failed to update subtask");
+      toast.error("Failed to update subtask status");
       fetchFilteredTasks(); // Revert on failure
     }
   };
@@ -397,26 +367,26 @@ export default function EmployeeTasksPage() {
     }
   };
 
-  // --- DERIVED STATS (reflect the current, filtered view) ---
+  // --- DERIVED STATS (reflect the current, filtered view based on subtask calc) ---
   const stats = [
     { key: "total", label: "Total", value: tasks.length, className: "text-gray-700 bg-gray-50 border-gray-200" },
     {
       key: "in_progress",
       label: "In progress",
-      value: tasks.filter((t) => t.status === "in_progress").length,
+      value: tasks.filter((t) => subTaskProgress(t) > 0 && subTaskProgress(t) < 100).length,
       className: "text-[var(--color-primary-dark)] bg-[var(--color-primary-lighter)] border-[var(--color-primary-light)]",
     },
     {
       key: "review",
       label: "Review",
-      value: tasks.filter((t) => t.status === "under_review").length,
+      value: tasks.filter((t) => t.subTasks.some(st => st.status === 'under_review')).length,
       className: "text-purple-700 bg-purple-50 border-purple-200",
     },
     { key: "overdue", label: "Overdue", value: tasks.filter(isOverdue).length, className: "text-[var(--color-destructive)] bg-red-50 border-red-200" },
     {
       key: "completed",
       label: "Completed",
-      value: tasks.filter((t) => t.status === "completed").length,
+      value: tasks.filter((t) => t.subTasks.length > 0 && subTaskProgress(t) === 100).length,
       className: "text-emerald-700 bg-emerald-50 border-emerald-200",
     },
   ];
@@ -491,17 +461,6 @@ export default function EmployeeTasksPage() {
 
                   <div className="px-5 pb-5 space-y-5">
                     <div>
-                      <p className="text-xs font-bold text-gray-400 mb-2">Status</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {STATUS_FILTER_OPTIONS.map((s) => (
-                          <OptionPill key={s} active={filterStatus === s} onClick={() => setFilterStatus(s)}>
-                            {statusFilterLabel(s)}
-                          </OptionPill>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div>
                       <p className="text-xs font-bold text-gray-400 mb-2">Priority</p>
                       <div className="grid grid-cols-2 gap-2">
                         {PRIORITY_FILTER_OPTIONS.map((p) => (
@@ -569,41 +528,6 @@ export default function EmployeeTasksPage() {
             <span className="flex items-center gap-1.5 text-xs font-bold text-gray-400 pr-1">
               <Filter size={13} /> Filters
             </span>
-
-            {/* Status dropdown */}
-            <div className="relative custom-dropdown-container">
-              <button
-                type="button"
-                onClick={() => setOpenDropdown(openDropdown === "filter-status" ? null : "filter-status")}
-                className={`w-[9.5rem] px-3 py-2.5 rounded-xl border flex items-center justify-between bg-white transition-all cursor-pointer ${
-                  openDropdown === "filter-status"
-                    ? "border-[var(--color-primary)] ring-1 ring-[var(--color-primary-light)]"
-                    : "border-gray-200 hover:border-[var(--color-primary-light)]"
-                }`}
-              >
-                <StatusFilterBadge value={filterStatus} />
-                <ChevronDown
-                  size={14}
-                  className={`text-gray-400 shrink-0 transition-transform ${openDropdown === "filter-status" ? "rotate-180 text-[var(--color-primary)]" : ""}`}
-                />
-              </button>
-              {openDropdown === "filter-status" && (
-                <div className="absolute z-40 w-44 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                  {STATUS_FILTER_OPTIONS.map((s) => (
-                    <div
-                      key={s}
-                      onClick={() => {
-                        setFilterStatus(s);
-                        setOpenDropdown(null);
-                      }}
-                      className={`px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${filterStatus === s ? "bg-[var(--color-primary-lighter)]" : "hover:bg-gray-50"}`}
-                    >
-                      <StatusFilterBadge value={s} />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
 
             {/* Priority dropdown */}
             <div className="relative custom-dropdown-container">
@@ -702,7 +626,7 @@ export default function EmployeeTasksPage() {
             {activeFilterCount > 0 && (
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1.5 px-3 py-2.5 text-sm font-bold text-gray-500 hover:text-[var(--color-destructive)] bg-gray-100 hover:bg-red-50 rounded-xl cursor-pointer transition-all"
+                className="flex items-center justify-center cursor-pointer gap-1.5 px-3 py-2.5 text-sm font-bold text-gray-500 hover:text-[var(--color-destructive)] bg-gray-100 hover:bg-red-50 rounded-xl transition-all"
               >
                 <XCircle size={15} /> Clear
               </button>
@@ -710,10 +634,9 @@ export default function EmployeeTasksPage() {
           </div>
         </div>
 
-        {/* Active filter chips — mobile only; desktop dropdowns already show the selected value inline */}
+        {/* Active filter chips — mobile only */}
         {activeFilterCount > 0 && (
           <div className="sm:hidden flex flex-wrap items-center gap-1.5 mt-3 pt-3 border-t border-gray-100">
-            {filterStatus !== "all" && <FilterChip label={STATUS_META[filterStatus].label} onRemove={() => setFilterStatus("all")} />}
             {filterPriority !== "all" && <FilterChip label={PRIORITY_META[filterPriority].label} onRemove={() => setFilterPriority("all")} />}
             {filterDate !== "all" && <FilterChip label={DATE_FILTER_LABELS[filterDate]} onRemove={() => setFilterDate("all")} />}
             {filterExactDate && <FilterChip label={new Date(filterExactDate).toLocaleDateString()} onRemove={() => setFilterExactDate("")} />}
@@ -749,8 +672,8 @@ export default function EmployeeTasksPage() {
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-2.5 sm:gap-3">
           {tasks.map((task) => {
             const totalSubTasks = task.subTasks.length;
-            const completedSubTasks = task.subTasks.filter((st) => st.isCompleted).length;
-            const progress = totalSubTasks === 0 ? (task.status === "completed" ? 100 : 0) : subTaskProgress(task);
+            const completedSubTasks = task.subTasks.filter((st) => st.status === 'completed').length;
+            const progress = totalSubTasks === 0 ? 0 : subTaskProgress(task);
             const overdue = isOverdue(task);
 
             return (
@@ -764,7 +687,6 @@ export default function EmployeeTasksPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <StatusBadge status={task.status} />
                     <PriorityTag priority={task.priority} />
                   </div>
                   <h3 className="text-[15px] sm:text-base font-bold text-gray-900 truncate">{task.title}</h3>
@@ -775,7 +697,7 @@ export default function EmployeeTasksPage() {
                     <span>By {task.createdBy.name}</span>
                     {totalSubTasks > 0 && (
                       <span className="flex items-center gap-1">
-                        <CheckSquare size={12} /> {completedSubTasks}/{totalSubTasks} steps
+                        <ListChecks size={12} /> {completedSubTasks}/{totalSubTasks} steps
                       </span>
                     )}
                   </div>
@@ -800,176 +722,199 @@ export default function EmployeeTasksPage() {
       {/* ========================================================= */}
       {/* TASK DETAIL SHEET (bottom sheet on mobile, modal on desktop) */}
       {/* ========================================================= */}
-      {selectedTask && (
-        <div
-          className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-gray-900/50 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedTaskId(null);
-          }}
-        >
-          <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 fade-in duration-200">
-            <div className="sm:hidden mx-auto mt-3 h-1.5 w-12 rounded-full bg-gray-200 shrink-0" />
+      {selectedTask && (() => {
+        const displayedSubtasks = selectedTask.subTasks.filter(st => viewSubtaskFilter === "all" || st.status === viewSubtaskFilter);
 
-            <div className="flex items-start justify-between gap-3 px-5 pt-3 sm:pt-5 pb-4 border-b border-gray-100 shrink-0">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                  <StatusBadge status={selectedTask.status} />
-                  <PriorityTag priority={selectedTask.priority} />
-                </div>
-                <h2 className="text-lg font-extrabold text-gray-900 leading-snug">{selectedTask.title}</h2>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs font-medium text-gray-500">
-                  <span className={`flex items-center gap-1 ${isOverdue(selectedTask) ? "text-[var(--color-destructive)]" : ""}`}>
-                    <Calendar size={13} /> {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "No deadline"}
-                  </span>
-                  <span>Assigned by {selectedTask.createdBy.name}</span>
-                </div>
-              </div>
-              <button onClick={() => setSelectedTaskId(null)} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 shrink-0 cursor-pointer">
-                <X size={18} />
-              </button>
-            </div>
+        return (
+          <div
+            className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-gray-900/50 backdrop-blur-sm"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelectedTaskId(null);
+            }}
+          >
+            <div className="bg-white w-full sm:max-w-xl rounded-t-3xl sm:rounded-3xl max-h-[92vh] sm:max-h-[85vh] flex flex-col shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 fade-in duration-200">
+              <div className="sm:hidden mx-auto mt-3 h-1.5 w-12 rounded-full bg-gray-200 shrink-0" />
 
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
-              <div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Update status</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {STATUS_ORDER.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => handleStatusChange(selectedTask.id, s)}
-                      className={`px-3 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        selectedTask.status === s
-                          ? "bg-[var(--color-primary)] border-[var(--color-primary)] text-white shadow-sm"
-                          : "bg-gray-50 border-gray-200 text-gray-600 hover:border-[var(--color-primary-light)]"
-                      }`}
-                    >
-                      {STATUS_META[s].label}
-                    </button>
-                  ))}
+              <div className="flex items-start justify-between gap-3 px-5 pt-3 sm:pt-5 pb-4 border-b border-gray-100 shrink-0">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <PriorityTag priority={selectedTask.priority} />
+                  </div>
+                  <h2 className="text-lg font-extrabold text-gray-900 leading-snug">{selectedTask.title}</h2>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs font-medium text-gray-500">
+                    <span className={`flex items-center gap-1 ${isOverdue(selectedTask) ? "text-[var(--color-destructive)]" : ""}`}>
+                      <Calendar size={13} /> {selectedTask.dueDate ? new Date(selectedTask.dueDate).toLocaleDateString() : "No deadline"}
+                    </span>
+                    <span>Assigned by {selectedTask.createdBy.name}</span>
+                  </div>
                 </div>
+                <button onClick={() => setSelectedTaskId(null)} className="p-2 rounded-full hover:bg-gray-100 text-gray-400 shrink-0 cursor-pointer">
+                  <X size={18} />
+                </button>
               </div>
 
-              {selectedTask.description && (
-                <div>
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Instructions</p>
-                  <p className="text-sm text-gray-700 bg-gray-50 p-3.5 rounded-xl border border-gray-100 leading-relaxed whitespace-pre-wrap">
-                    {selectedTask.description}
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Checklist</p>
-                  {selectedTask.subTasks.length > 0 && (
-                    <span className="text-xs font-bold text-[var(--color-primary)]">{subTaskProgress(selectedTask)}%</span>
-                  )}
-                </div>
-
-                {selectedTask.subTasks.length > 0 && (
-                  <div className="mb-3">
-                    <ProgressBar percent={subTaskProgress(selectedTask)} />
+              {/* Added pb-32 so the bottom dropdown has plenty of space to open without clipping against the bottom of the modal */}
+              <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 pb-32">
+                
+                {selectedTask.description && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Instructions</p>
+                    <p className="text-sm text-gray-700 bg-gray-50 p-3.5 rounded-xl border border-gray-100 leading-relaxed whitespace-pre-wrap">
+                      {selectedTask.description}
+                    </p>
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  {selectedTask.subTasks.length === 0 && (
-                    <p className="text-sm text-gray-400 italic py-2">No steps yet — add one below.</p>
-                  )}
-                  {selectedTask.subTasks.map((sub) => {
-                    const isLongDescription = (sub.description?.length || 0) > 90;
-                    const isExpanded = expandedSubtaskIds.has(sub.id);
-                    return (
-                      <div key={sub.id} className="group bg-white border border-gray-200 rounded-xl hover:border-[var(--color-primary-light)] transition-all overflow-hidden">
-                        <div className="flex items-center justify-between p-3 gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleSubTask(selectedTask.id, sub.id, sub.isCompleted)}
-                            className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer"
-                          >
-                            {sub.isCompleted ? (
-                              <CheckSquare size={18} className="text-emerald-500 shrink-0" />
-                            ) : (
-                              <Square size={18} className="text-gray-300 shrink-0" />
-                            )}
-                            <span className={`text-sm select-none transition-all truncate ${sub.isCompleted ? "text-gray-400 line-through" : "text-gray-700 font-medium"}`}>
-                              {sub.title}
-                            </span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => confirmDeleteSubTask(selectedTask.id, sub.id)}
-                            className="text-gray-300 hover:text-[var(--color-destructive)] p-1.5 shrink-0 cursor-pointer transition-all"
-                            title="Delete step"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Checklist</p>
+                      {selectedTask.subTasks.length > 0 && (
+                        <span className="text-[10px] font-bold bg-[var(--color-primary-lighter)] text-[var(--color-primary-dark)] px-2 py-0.5 rounded-full">
+                          {subTaskProgress(selectedTask)}%
+                        </span>
+                      )}
+                    </div>
 
-                        {sub.description && (
-                          <div className="pl-[42px] pr-3 pb-3 -mt-1">
-                            <p className={`text-xs text-gray-400 leading-relaxed whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-2"}`}>
-                              {sub.description}
-                            </p>
-                            {isLongDescription && (
-                              <button
-                                type="button"
-                                onClick={() => toggleSubtaskExpanded(sub.id)}
-                                className="text-[11px] font-bold text-[var(--color-primary)] mt-1 cursor-pointer"
-                              >
-                                {isExpanded ? "Show less" : "Show more"}
-                              </button>
+                    {/* INTERNAL SUBTASK FILTER PILLS */}
+                    <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto custom-scrollbar">
+                      {["all", "todo", "in_progress", "under_review", "completed"].map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setViewSubtaskFilter(s as any)}
+                          className={`px-2 py-1 text-[10px] font-bold uppercase tracking-wider rounded-md transition-colors whitespace-nowrap ${viewSubtaskFilter === s ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                        >
+                          {s.replace("_", " ")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {selectedTask.subTasks.length > 0 && (
+                    <div className="mb-3">
+                      <ProgressBar percent={subTaskProgress(selectedTask)} />
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {displayedSubtasks.length === 0 ? (
+                      <p className="text-sm text-gray-400 italic py-2">No subtasks match your filter.</p>
+                    ) : (
+                      displayedSubtasks.map((sub) => {
+                        const isLongDescription = (sub.description?.length || 0) > 90;
+                        const isExpanded = expandedSubtaskIds.has(sub.id);
+                        return (
+                          <div key={sub.id} className="group bg-white border border-gray-200 rounded-xl hover:border-[var(--color-primary-light)] transition-all relative">
+                            <div className="flex items-start justify-between p-3 gap-2">
+                              
+                              <div className="flex-1 min-w-0 flex items-start gap-2 pt-0.5">
+                                <span className={`text-sm select-none transition-all truncate ${sub.status === 'completed' ? "text-gray-400 line-through" : "text-gray-700 font-medium"}`}>
+                                  {sub.title}
+                                </span>
+                              </div>
+
+                              {/* NEW: Interactive Status Dropdown for Subtasks */}
+                              <div className="relative custom-dropdown-container shrink-0 flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenDropdown(openDropdown === `status-${sub.id}` ? null : `status-${sub.id}`)}
+                                  className="flex items-center gap-1 hover:bg-gray-50 rounded-lg p-1 transition-colors cursor-pointer"
+                                >
+                                  <StatusBadge status={sub.status} />
+                                  <ChevronDown size={14} className="text-gray-400" />
+                                </button>
+                                
+                                {openDropdown === `status-${sub.id}` && (
+                                  <div className="absolute right-0 top-full mt-1 z-50 w-36 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden p-1 animate-in fade-in zoom-in-95 duration-150">
+                                    {STATUS_ORDER.map((s) => (
+                                      <button
+                                        key={s}
+                                        type="button"
+                                        onClick={() => handleSubTaskStatusChange(selectedTask.id, sub.id, s)}
+                                        className={`w-full text-left px-2 py-1.5 rounded-lg transition-colors cursor-pointer ${sub.status === s ? "bg-[var(--color-primary-lighter)]" : "hover:bg-gray-50"}`}
+                                      >
+                                        <StatusBadge status={s} />
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => confirmDeleteSubTask(selectedTask.id, sub.id)}
+                                  className="text-gray-300 hover:text-[var(--color-destructive)] p-1 shrink-0 cursor-pointer transition-all ml-1"
+                                  title="Delete step"
+                                >
+                                  <Trash2 size={15} />
+                                </button>
+                              </div>
+                            </div>
+
+                            {sub.description && (
+                              <div className="px-3 pb-3 -mt-1">
+                                <p className={`text-xs text-gray-500 leading-relaxed whitespace-pre-wrap bg-gray-50 p-2 rounded-lg border border-gray-100 ${isExpanded ? "" : "line-clamp-2"}`}>
+                                  {sub.description}
+                                </p>
+                                {isLongDescription && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleSubtaskExpanded(sub.id)}
+                                    className="text-[11px] font-bold text-[var(--color-primary)] mt-1 cursor-pointer"
+                                  >
+                                    {isExpanded ? "Show less" : "Show more"}
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
+
+                <form onSubmit={(e) => handleAddSubTask(e, selectedTask.id)} className="shrink-0 border-t border-gray-100 pt-4 mt-2 space-y-2 bg-white">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add a new step..."
+                      value={newSubTaskTitles[selectedTask.id] || ""}
+                      onChange={(e) => setNewSubTaskTitles((prev) => ({ ...prev, [selectedTask.id]: e.target.value }))}
+                      className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:border-[var(--color-primary)] outline-none bg-gray-50 focus:bg-white transition-all focus:ring-1 focus:ring-[var(--color-primary)] cursor-text"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!newSubTaskTitles[selectedTask.id]?.trim()}
+                      className="flex items-center justify-center w-11 h-11 bg-[var(--color-primary)] text-white font-bold rounded-xl cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                      aria-label="Add step"
+                    >
+                      <Plus size={18} />
+                    </button>
+                  </div>
+
+                  {showAddDescription ? (
+                    <textarea
+                      placeholder="Add optional details for this step..."
+                      value={newSubTaskDescriptions[selectedTask.id] || ""}
+                      onChange={(e) => setNewSubTaskDescriptions((prev) => ({ ...prev, [selectedTask.id]: e.target.value }))}
+                      rows={2}
+                      className="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:border-[var(--color-primary)] outline-none bg-gray-50 focus:bg-white transition-all focus:ring-1 focus:ring-[var(--color-primary)] resize-none cursor-text"
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowAddDescription(true)}
+                      className="text-xs font-bold text-gray-400 hover:text-[var(--color-primary)] cursor-pointer"
+                    >
+                      + Add description (optional)
+                    </button>
+                  )}
+                </form>
               </div>
             </div>
-
-            <form onSubmit={(e) => handleAddSubTask(e, selectedTask.id)} className="shrink-0 border-t border-gray-100 p-4 space-y-2 bg-white">
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  placeholder="Add a new step..."
-                  value={newSubTaskTitles[selectedTask.id] || ""}
-                  onChange={(e) => setNewSubTaskTitles((prev) => ({ ...prev, [selectedTask.id]: e.target.value }))}
-                  className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:border-[var(--color-primary)] outline-none bg-gray-50 focus:bg-white transition-all focus:ring-1 focus:ring-[var(--color-primary)] cursor-text"
-                />
-                <button
-                  type="submit"
-                  disabled={!newSubTaskTitles[selectedTask.id]?.trim()}
-                  className="flex items-center justify-center w-11 h-11 bg-[var(--color-primary)] text-white font-bold rounded-xl cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
-                  aria-label="Add step"
-                >
-                  <Plus size={18} />
-                </button>
-              </div>
-
-              {showAddDescription ? (
-                <textarea
-                  placeholder="Add optional details for this step..."
-                  value={newSubTaskDescriptions[selectedTask.id] || ""}
-                  onChange={(e) => setNewSubTaskDescriptions((prev) => ({ ...prev, [selectedTask.id]: e.target.value }))}
-                  rows={2}
-                  className="w-full px-4 py-2.5 text-sm rounded-xl border border-gray-200 focus:border-[var(--color-primary)] outline-none bg-gray-50 focus:bg-white transition-all focus:ring-1 focus:ring-[var(--color-primary)] resize-none cursor-text"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowAddDescription(true)}
-                  className="text-xs font-bold text-gray-400 hover:text-[var(--color-primary)] cursor-pointer"
-                >
-                  + Add description (optional)
-                </button>
-              )}
-            </form>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================= */}
       {/* DELETE CONFIRMATION MODAL (SUBTASK)                       */}

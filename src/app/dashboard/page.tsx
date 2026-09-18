@@ -1,12 +1,17 @@
 "use client"
 
 import ProtectedRoute from "../component/ProtectedRoutes";
+import AttendanceOverview from "./components/AttendanceOverview";
+import AttendanceTrendChart from "./components/AttendanceTrendChart";
+import DashboardHighlightsRow from "./components/DashboardHighlightsRow";
 import DashboardSectionOne from "./components/DashboardSectionOne";
+import DistributionPanel from "./components/DistributionComponent";
 import DonutChart from "./components/DonutChart";
 import LeadSources from "./components/LeadSource";
 import LeadTemperature from "./components/LeadTemperature";
 
 import OwnerFollowups from "./components/OwnerFollowups";
+import QuickActions from "./components/QuickActions";
 import RadarChart from "./components/RadarChart";
 import SmallGraph from "./components/SmallGraph";
 import SmallScreenData from "./components/SmallScreenData";
@@ -22,6 +27,18 @@ export default function Dashboard() {
         <div className="">
           <DashboardSectionOne />
         </div>
+
+        <div className=" grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-2 my-5">
+         
+          <AttendanceOverview />
+          <AttendanceTrendChart />
+           <DistributionPanel />
+           <QuickActions />
+        </div>
+
+       <div className=" my-5">
+         <DashboardHighlightsRow />
+       </div>
 
         <div className="">
           <LeadSources />

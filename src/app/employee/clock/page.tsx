@@ -2,26 +2,46 @@
 
 import { useEffect, useState } from "react";
 import { clockIn, clockOut, getFilteredEmployeeReport } from "@/store/attendance/attendance";
-import { employeeManualUpdate } from "@/store/attendance/attendance"; 
+import { employeeManualUpdate } from "@/store/attendance/attendance";
 import { LogOut, LogIn, Calendar as CalendarIcon, AlertCircle, Clock, FileText, XCircle, CheckCircle2, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useEmployeeAuth } from "@/context/EmployeeAuthContext";
+
+// --- CONFIGURATION VARIABLES ---
+// Change these variables to easily adjust the allowed clock-in window. 
+// Use 24-hour format "HH:MM".
+const ALLOWED_CLOCK_IN_START = "10:00"; 
+const ALLOWED_CLOCK_IN_END = "18:30";
+// -------------------------------
 
 const getLocalDateString = (date: Date) => {
   const d = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
   return d.toISOString().split("T")[0];
 };
 
+// Helpers for time restrictions
+const timeToMinutes = (timeStr: string) => {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  return hours * 60 + minutes;
+};
+
+const formatConfigTime = (timeStr: string) => {
+  const [h, m] = timeStr.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hours = h % 12 || 12;
+  return `${hours}:${m.toString().padStart(2, '0')} ${ampm}`;
+};
+
 const RING_RADIUS = 80;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 export default function EmployeeClock() {
-   const { employee } = useEmployeeAuth(); 
+  const { employee } = useEmployeeAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [todayRecord, setTodayRecord] = useState<any>(null);
   const [loadingAction, setLoadingAction] = useState(false);
   const [confirmModal, setConfirmModal] = useState<"in" | "out" | null>(null);
-  
+
   // Manual Update Modal State
   const [manualModalOpen, setManualModalOpen] = useState(false);
   const [manualStatus, setManualStatus] = useState("leave");
@@ -84,11 +104,11 @@ export default function EmployeeClock() {
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualNotes.trim()) return toast.error("Please provide a reason.");
-    
+
     setLoadingAction(true);
     const today = getLocalDateString(new Date());
     const res = await employeeManualUpdate({ dateString: today, status: manualStatus, notes: manualNotes });
-    
+
     if (res?.success) {
       setManualModalOpen(false);
       setManualNotes("");
@@ -103,11 +123,17 @@ export default function EmployeeClock() {
 
   // --- STRICT & BULLETPROOF RECORD STATES ---
   const isManualState = todayRecord && !todayRecord.clockIn;
-  
+
   const isPending = isManualState && !todayRecord.markedByAdminId;
   const isApproved = isManualState && !!todayRecord.markedByAdminId && ['leave', 'workfromhome'].includes(todayRecord.status);
   const isDenied = isManualState && !!todayRecord.markedByAdminId && todayRecord.status === 'absent' && todayRecord.notes && todayRecord.notes.includes('[REJECTED]');
   const isAdminForced = isManualState && !isApproved && !isDenied && !!todayRecord.markedByAdminId;
+
+  // --- Check Allowed Clock-In Window ---
+  const currentMinutes = currentTime.getHours() * 60 + currentTime.getMinutes();
+  const startMinutes = timeToMinutes(ALLOWED_CLOCK_IN_START);
+  const endMinutes = timeToMinutes(ALLOWED_CLOCK_IN_END);
+  const isClockInAllowed = currentMinutes >= startMinutes && currentMinutes <= endMinutes;
 
   // --- Presentation helpers ---
   const getGreeting = () => {
@@ -120,7 +146,6 @@ export default function EmployeeClock() {
   const formatTime = (value: string | Date) =>
     new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  // UPDATED TO CALCULATE SECONDS
   const formatDuration = (ms: number) => {
     const totalSeconds = Math.max(0, Math.floor(ms / 1000));
     const hours = Math.floor(totalSeconds / 3600);
@@ -138,37 +163,37 @@ export default function EmployeeClock() {
 
   const manualStatusInfo = isPending
     ? {
-        icon: Clock,
-        iconBg: "bg-amber-50",
-        iconColor: "text-amber-600",
-        title: "Pending review",
-        description: `You requested ${todayRecord?.status === "workfromhome" ? "work from home" : "leave"} for today — waiting on admin approval.`,
-      }
+      icon: Clock,
+      iconBg: "bg-amber-50",
+      iconColor: "text-amber-600",
+      title: "Pending review",
+      description: `You requested ${todayRecord?.status === "workfromhome" ? "work from home" : "leave"} for today — waiting on admin approval.`,
+    }
     : isApproved
-    ? {
+      ? {
         icon: CheckCircle2,
         iconBg: "bg-green-50",
         iconColor: "text-green-600",
         title: "Approved",
         description: `Your ${todayRecord?.status === "workfromhome" ? "work from home" : "leave"} request for today was approved.`,
       }
-    : isDenied
-    ? {
-        icon: XCircle,
-        iconBg: "bg-red-50",
-        iconColor: "text-red-600",
-        title: "Request denied",
-        description: "Your admin rejected your request and marked today as absent.",
-      }
-    : isAdminForced
-    ? {
-        icon: AlertCircle,
-        iconBg: "bg-gray-100",
-        iconColor: "text-gray-600",
-        title: "Set by admin",
-        description: `Your admin recorded today as ${todayRecord?.status === "workfromhome" ? "WFH" : String(todayRecord?.status).replace("_", " ")}.`,
-      }
-    : null;
+      : isDenied
+        ? {
+          icon: XCircle,
+          iconBg: "bg-red-50",
+          iconColor: "text-red-600",
+          title: "Request denied",
+          description: "Your admin rejected your request and marked today as absent.",
+        }
+        : isAdminForced
+          ? {
+            icon: AlertCircle,
+            iconBg: "bg-gray-100",
+            iconColor: "text-gray-600",
+            title: "Set by admin",
+            description: `Your admin recorded today as ${todayRecord?.status === "workfromhome" ? "WFH" : String(todayRecord?.status).replace("_", " ")}.`,
+          }
+          : null;
 
   // Last 7 days dynamic calculation
   const todayStr = getLocalDateString(currentTime);
@@ -199,7 +224,7 @@ export default function EmployeeClock() {
       {/* HERO: Light themed "on the clock" ring OR non-clocked-in state */}
       {hasClockedInToday ? (
         <div className="bg-white rounded-[28px] shadow-lg border border-gray-100 p-6 sm:p-9 relative overflow-hidden">
-          
+
           <div className="relative flex items-start justify-between gap-3 mb-7 sm:mb-9">
             <div>
               <p className="text-base font-bold text-gray-900">{getGreeting()} <span className=" text-[var(--color-primary)]">{employee?.name}</span></p>
@@ -237,7 +262,6 @@ export default function EmployeeClock() {
               </defs>
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              {/* UPDATED TEXT SIZE TO FIT SECONDS */}
               <span className="text-2xl sm:text-3xl font-bold text-gray-900 font-mono tabular-nums">{elapsedLabel}</span>
               <span className="text-xs text-gray-500 font-semibold mt-1.5">since {formatTime(todayRecord.clockIn)}</span>
             </div>
@@ -288,12 +312,29 @@ export default function EmployeeClock() {
 
           {!manualStatusInfo && (
             <div className="space-y-3 w-full max-w-md mx-auto mt-8 sm:mt-10">
+              
+              {/* SMART CLOCK IN BUTTON WITH TIME RESTRICTIONS */}
               <button
-                onClick={() => setConfirmModal("in")}
-                className="w-full flex items-center justify-center gap-3 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white font-bold py-4 sm:py-5 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all text-base sm:text-lg cursor-pointer"
+                onClick={() => isClockInAllowed && setConfirmModal("in")}
+                disabled={!isClockInAllowed}
+                className={`w-full flex items-center justify-center gap-3 font-bold py-4 sm:py-5 rounded-2xl transition-all text-base sm:text-lg ${
+                  isClockInAllowed 
+                    ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 cursor-pointer"
+                    : "bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed"
+                }`}
               >
-                <LogIn size={22} /> Clock in now
+                {isClockInAllowed ? (
+                  <>
+                    <LogIn size={22} /> Clock in now
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle size={20} /> 
+                    Available {formatConfigTime(ALLOWED_CLOCK_IN_START)} - {formatConfigTime(ALLOWED_CLOCK_IN_END)}
+                  </>
+                )}
               </button>
+
               <button
                 onClick={() => setManualModalOpen(true)}
                 className="w-full text-sm font-semibold text-[var(--color-gray)] hover:text-[var(--color-primary)] transition-colors cursor-pointer pt-2"
@@ -335,7 +376,6 @@ export default function EmployeeClock() {
           </span>
           <p className="text-xs font-semibold text-[var(--color-gray)]">Hours today</p>
           <p className="text-xl sm:text-2xl font-bold text-gray-900 font-mono tabular-nums mt-0.5">
-            {/* UPDATED FALLBACK */}
             {elapsedLabel ?? "0h 0m 0s"}
           </p>
         </div>
@@ -351,9 +391,8 @@ export default function EmployeeClock() {
           {chartDays.map((d) => (
             <div key={d.dateStr} className="flex-1 flex flex-col items-center justify-end gap-2 h-full">
               <div
-                className={`w-full max-w-[18px] rounded-full transition-all duration-500 ${
-                  d.isToday ? "bg-[var(--color-primary)]" : "bg-[var(--color-primary-light)]"
-                }`}
+                className={`w-full max-w-[18px] rounded-full transition-all duration-500 ${d.isToday ? "bg-[var(--color-primary)]" : "bg-[var(--color-primary-light)]"
+                  }`}
                 style={{ height: `${Math.max(4, (d.hours / maxWeekHours) * 100)}%` }}
               />
               <span className={`text-[11px] font-semibold ${d.isToday ? "text-[var(--color-primary-dark)]" : "text-[var(--color-gray)]"}`}>
@@ -374,11 +413,10 @@ export default function EmployeeClock() {
             <div className="p-6 sm:p-7">
               <div className="flex items-center gap-3 mb-4">
                 <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                    confirmModal === "in"
-                      ? "bg-[var(--color-primary-lighter)] text-[var(--color-primary-darker)]"
-                      : "bg-red-50 text-[var(--color-destructive)]"
-                  }`}
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${confirmModal === "in"
+                    ? "bg-[var(--color-primary-lighter)] text-[var(--color-primary-darker)]"
+                    : "bg-red-50 text-[var(--color-destructive)]"
+                    }`}
                 >
                   {confirmModal === "in" ? <LogIn size={18} /> : <LogOut size={18} />}
                 </span>
@@ -403,11 +441,10 @@ export default function EmployeeClock() {
                 <button
                   onClick={handleClockAction}
                   disabled={loadingAction}
-                  className={`flex-1 px-4 py-3.5 font-semibold text-white rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center ${
-                    confirmModal === "in"
-                      ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]"
-                      : "bg-[var(--color-destructive)] hover:bg-red-600"
-                  }`}
+                  className={`flex-1 px-4 py-3.5 font-semibold text-white rounded-xl shadow-md transition-colors cursor-pointer flex items-center justify-center ${confirmModal === "in"
+                    ? "bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)]"
+                    : "bg-[var(--color-destructive)] hover:bg-red-600"
+                    }`}
                 >
                   {loadingAction ? (
                     <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
@@ -456,18 +493,16 @@ export default function EmployeeClock() {
                   <button
                     type="button"
                     onClick={() => setManualStatus("leave")}
-                    className={`py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
-                      manualStatus === "leave" ? "bg-white text-[var(--color-primary-darker)] shadow-sm" : "text-[var(--color-gray)]"
-                    }`}
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${manualStatus === "leave" ? "bg-white text-[var(--color-primary-darker)] shadow-sm" : "text-[var(--color-gray)]"
+                      }`}
                   >
                     On leave
                   </button>
                   <button
                     type="button"
                     onClick={() => setManualStatus("workfromhome")}
-                    className={`py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${
-                      manualStatus === "workfromhome" ? "bg-white text-[var(--color-primary-darker)] shadow-sm" : "text-[var(--color-gray)]"
-                    }`}
+                    className={`py-2.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer ${manualStatus === "workfromhome" ? "bg-white text-[var(--color-primary-darker)] shadow-sm" : "text-[var(--color-gray)]"
+                      }`}
                   >
                     Work from home
                   </button>

@@ -1307,8 +1307,9 @@ export default function AdminTasksPage() {
               </div>
 
               {/* MOBILE EMPLOYEE PICKER SHEET */}
+              {/* FIXED: Added 'custom-dropdown-container' to prevent global click listener from immediately closing the sheet */}
               <div
-                className={`md:hidden absolute inset-0 z-30 flex flex-col justify-end transition-opacity duration-200 ${openDropdown === 'form-emp' ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+                className={`custom-dropdown-container md:hidden absolute inset-0 z-30 flex flex-col justify-end transition-opacity duration-200 ${openDropdown === 'form-emp' ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
               >
                 <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={() => setOpenDropdown(null)} />
                 <div className={`relative bg-white rounded-t-3xl shadow-2xl border-t border-gray-200 flex flex-col max-h-[85%] transition-transform duration-300 ${openDropdown === 'form-emp' ? "translate-y-0" : "translate-y-full"}`}>
@@ -1737,7 +1738,7 @@ export default function AdminTasksPage() {
                                 <ul className="space-y-1.5">
                                   {summary.highlights.map((point, i) => (
                                     <li key={i} className="text-xs text-gray-700 leading-relaxed flex gap-2">
-                                      <Check size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                                      <span className="text-[var(--color-primary)] mt-0.5">•</span>
                                       <span>{point}</span>
                                     </li>
                                   ))}
@@ -1858,8 +1859,9 @@ export default function AdminTasksPage() {
                   </div>
 
                   {/* MOBILE EMPLOYEE PICKER SHEET */}
+                  {/* FIXED: Also added custom-dropdown-container to AI picker just to be completely safe from global bubbling */}
                   <div
-                    className={`md:hidden absolute inset-0 z-30 flex flex-col justify-end transition-opacity duration-200 ${isAiPickerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
+                    className={`custom-dropdown-container md:hidden absolute inset-0 z-30 flex flex-col justify-end transition-opacity duration-200 ${isAiPickerOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"}`}
                   >
                     <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={() => setIsAiPickerOpen(false)} />
                     <div className={`relative bg-white rounded-t-3xl shadow-2xl border-t border-gray-200 flex flex-col max-h-[85%] transition-transform duration-300 ${isAiPickerOpen ? "translate-y-0" : "translate-y-full"}`}>
@@ -1896,7 +1898,7 @@ export default function AdminTasksPage() {
                                 <div
                                   key={empId}
                                   onClick={() => toggleAiEmp(empId)}
-                                  className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected ? 'bg-[var(--color-primary-lighter)] border-[var(--color-primary-light)]' : 'bg-white border-transparent hover:border-gray-200 hover:bg-gray-50'}`}
+                                  className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all border ${isSelected ? 'bg-[var(--color-primary-lighter)] border-[var(--color-primary-light)]' : 'bg-white border-transparent hover:border-gray-200 hover:bg-white shadow-sm'}`}
                                 >
                                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${isSelected ? 'bg-[var(--color-primary)] text-white' : 'bg-gray-100 text-gray-500'}`}>
                                     {isSelected ? <Check size={14} /> : emp.customerName?.charAt(0).toUpperCase()}
@@ -1911,7 +1913,7 @@ export default function AdminTasksPage() {
                           </div>
                         )}
                         {employees.length > 20 && !aiEmpSearch && (
-                          <div className="text-center py-2 text-xs text-gray-400 font-medium">Showing top 20 — search to find more.</div>
+                          <div className="text-center py-4 text-xs text-gray-400 font-medium">Showing top 20 — search to find more.</div>
                         )}
                       </div>
                       <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-gray-100 shrink-0" style={{ paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom))" }}>

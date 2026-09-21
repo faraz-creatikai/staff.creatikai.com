@@ -227,8 +227,8 @@ export default function ClosedDealsPage() {
               </svg>
             </button>
             <div>
-              <h1 className="text-lg font-bold text-gray-900 tracking-tight">Closed Deals</h1>
-              <p className="text-xs text-gray-500 mt-0.5">{total} total deals closed</p>
+              <h1 className="text-lg font-bold text-gray-900 tracking-tight">Former Employee</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{total} total former employee</p>
             </div>
           </div>
 
@@ -337,7 +337,7 @@ export default function ClosedDealsPage() {
                   <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Campaign</th>
                   <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Price</th>
                   <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Lead</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Closed</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">Leave Company</th>
                   <th className="px-4 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -353,8 +353,8 @@ export default function ClosedDealsPage() {
                             <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
                           </svg>
                         </div>
-                        <p className="text-sm font-semibold text-gray-700">No closed deals found</p>
-                        <p className="text-xs text-gray-400 max-w-[200px] text-center">Closed deals will appear here once a deal is marked as closed</p>
+                        <p className="text-sm font-semibold text-gray-700">No former employee found</p>
+                        <p className="text-xs text-gray-400 max-w-[200px] text-center">former employees will appear here once a deal is marked as closed</p>
                       </div>
                     </td>
                   </tr>
@@ -509,7 +509,7 @@ export default function ClosedDealsPage() {
           {/* Footer count */}
           {!loading && customers.length > 0 && totalPages <= 1 && (
             <div className="px-4 py-3 border-t border-gray-100">
-              <p className="text-xs text-gray-400 text-center">{customers.length} closed deals</p>
+              <p className="text-xs text-gray-400 text-center">{customers.length} former employees</p>
             </div>
           )}
         </div>

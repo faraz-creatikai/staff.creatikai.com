@@ -91,7 +91,7 @@ export default function CustomerFieldsAdd() {
             <form onSubmit={(e) => e.preventDefault()} className="w-full">
               <div className="mb-8 text-left border-b pb-4 border-gray-200">
                 <h1 className="text-3xl font-extrabold text-[var(--color-secondary-darker)] leading-tight tracking-tight">
-                  Add <span className="text-[var(--color-primary)]">CustomerFields</span>
+                  Add <span className="text-[var(--color-primary)]">Employee Fields</span>
                 </h1>
               </div>
 

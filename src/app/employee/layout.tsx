@@ -21,6 +21,8 @@ import {
 import EmployeeProtectedRoute from "../component/EmployeeProtextRoute";
 import BrandLogo from "../component/labels/BrandLogo";
 import { FaTasks } from "react-icons/fa";
+import MobileBottomNav from "./components/MobileBottomNav";
+
 
 function getInitials(name?: string) {
   if (!name) return "EM";
@@ -341,10 +343,10 @@ function EmployeeLayoutContent({ children }: { children: ReactNode }) {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col h-full overflow-y-auto custom-scrollbar">
           
-          {/* Mobile Header */}
+          {/* Mobile Header (PRESERVED EXACTLY AS YOU REQUESTED) */}
           <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-[var(--color-muted)] shadow-sm sticky top-0 z-30">
-            <Link href="/employee/profile" className="flex items-center gap-3">
-              {employeeAvatarUrl ? (
+            <Link href="/employee/profile" className="flex items-center gap-1">
+             {/*  {employeeAvatarUrl ? (
                 <img
                   src={employeeAvatarUrl}
                   alt={employeeName}
@@ -354,12 +356,16 @@ function EmployeeLayoutContent({ children }: { children: ReactNode }) {
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary)] text-sm font-semibold text-white ring-2 ring-[var(--color-primary-light)]">
                   {getInitials(employeeName)}
                 </div>
-              )}
+              )} */}
+               <BrandLogo
+                          variant="icon"
+                          className="h-10 w-10 object-contain"
+                        />
               <div className="min-w-0">
-                <p className="truncate text-sm font-bold text-[var(--color-primary-darker)]">
+               {/*  <p className="truncate text-sm font-bold text-[var(--color-primary-darker)]">
                   {employeeName}
-                </p>
-                <p className="text-xs font-medium text-[var(--color-gray)]">Staff Portal</p>
+                </p> */}
+                <p className="truncate text-lg font-extrabold text-[var(--color-primary-darker)]">Staff Portal</p>
               </div>
             </Link>
 
@@ -374,15 +380,17 @@ function EmployeeLayoutContent({ children }: { children: ReactNode }) {
               <Menu size={24} />
             </button>
             </div>
-
-            
           </div>
 
-          {/* Page Content */}
-          <div className="p-2 sm:p-8 max-w-7xl mx-auto w-full flex-1">
+          {/* Page Content (Added pb-24 so content doesn't hide behind the new bottom navigation) */}
+          <div className="p-2 sm:p-8 max-w-7xl mx-auto w-full flex-1 pb-24 md:pb-8">
             {children}
           </div>
         </div>
+
+        {/* NEW: MOBILE BOTTOM NAVIGATION */}
+        <MobileBottomNav pathname={pathname} theme={theme} />
+
       </div>
 
       {/* Sign-out confirmation dialog */}

@@ -132,7 +132,7 @@ export default function CustomerTable<T extends Record<string, any>>({
                             }
                         />
                         <div className="max-h-[calc(80vh-240px)] absolute top-[380px] w-full bg-white dark:bg-[var(--color-childbgdark)] overflow-y-auto px-4 py-6 rounded-t-3xl">
-                            <h2 className="text-2xl font-bold text-center mb-8 text-[var(--color-primary)]">Customer Information</h2>
+                            <h2 className="text-2xl font-bold text-center mb-8 text-[var(--color-primary)]">Employee Information</h2>
 
                             {/* Standard Fields */}
                             {allLabelLeads?.map((item, j) => (

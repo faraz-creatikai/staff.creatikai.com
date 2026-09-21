@@ -2057,7 +2057,7 @@ export default function Customer() {
       );
       return;
     }
-    toast.error("Failed to close deal");
+    toast.error("Failed to former employee");
   };
 
   // State definition update (if using TypeScript)
@@ -2469,13 +2469,13 @@ export default function Customer() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900">Close Deal</h3>
+                    <h3 className="text-sm font-bold text-gray-900">former employee</h3>
                     <p className="text-xs text-gray-500">This action will mark the deal as closed</p>
                   </div>
                 </div>
                 <p className="text-sm text-gray-700 mb-5">
-                  Are you sure you want to close the deal for{" "}
-                  <span className="font-semibold text-gray-900">{dealCloseData?.name}</span>?
+                  Are you sure you want to make this employee{" "}
+                  <span className="font-semibold text-gray-900">{dealCloseData?.name}</span> former?
                 </p>
                 <div className="flex gap-3 justify-end">
                   <button
@@ -2498,7 +2498,7 @@ export default function Customer() {
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z"/>
               </svg>
             )} */}
-                    Yes, Close Deal
+                    Yes, former employee
                   </button>
                 </div>
               </div>
@@ -3326,7 +3326,7 @@ export default function Customer() {
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                 </svg>
-                Closed Deals
+                Former Employee
               </button>
             </div>
 

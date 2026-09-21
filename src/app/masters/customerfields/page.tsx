@@ -109,7 +109,7 @@ export default function CustomerFieldsPage() {
 
                 {/* Card Container */}
                 <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200 relative">
-                    <PageHeader title="Dashboard" subtitles={["CustomerFields"]} />
+                    <PageHeader title="Dashboard" subtitles={["Employee Fields"]} />
 
                     {/* Add Button */}
                     <AddButton
@@ -128,7 +128,7 @@ export default function CustomerFieldsPage() {
                             <input
                                 id="keyword"
                                 type="text"
-                                placeholder="Search by customerFields name..."
+                                placeholder="Search by Employee Field name..."
                                 value={keyword}
                                 onChange={(e) => setKeyword(e.target.value)}
                                 className="w-full outline-none border border-gray-300 rounded-md px-3 py-2 bg-white text-gray-800"

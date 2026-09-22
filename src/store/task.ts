@@ -256,3 +256,55 @@ export const assignAdminTaskViaAI = async (data: { prompt: string; assignedToIds
     return null;
   }
 };
+
+// ==========================================
+// AI WORKSPACE: Micro-QA & Macro-QA
+// ==========================================
+
+export const verifySubTaskAI = async (
+  subTaskId: string, 
+  payload: { submittedProof: string }
+): Promise<any> => {
+  try {
+    const response = await fetch(API_ROUTES.TASK.SUBTASK_VERIFY_AI(subTaskId), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    return data;
+  } catch (error) {
+    console.error("verifySubTaskAI ERROR: ", error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Failed to verify step with AI." 
+    };
+  }
+};
+
+export const submitTaskMacroReview = async (taskId: string): Promise<any> => {
+  try {
+    const response = await fetch(API_ROUTES.TASK.EMPLOYEE_SUBMIT_MACRO_REVIEW(taskId), {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || `HTTP error! status: ${response.status}`);
+    return data;
+  } catch (error) {
+    console.error("submitTaskMacroReview ERROR: ", error);
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : "Failed to submit task for final review." 
+    };
+  }
+};

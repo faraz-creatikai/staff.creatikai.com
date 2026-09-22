@@ -15,6 +15,7 @@ import MobileHamburger from "@/app/component/HamburgerMenu";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { disconnectSocket, initSocket } from "@/socket/socket";
+import AIAgentPanel from "../aiagents/panels/AiAgentPanel";
 
 export default function AppLayoutClient({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -90,6 +91,7 @@ export default function AppLayoutClient({ children }: { children: ReactNode }) {
           </SidebarInset>
         </div>
       </SidebarProvider>
+        <AIAgentPanel />
     </ProtectedRoute>
   );
 }

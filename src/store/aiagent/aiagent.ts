@@ -251,3 +251,222 @@ export const renderVideoProject = async (formData: FormData) => {
         return null;
     }
 };
+
+
+
+// 24/7 work of ai agent
+
+export interface DailyAIReport {
+  id: string;
+  type: string;
+  reportDate: string;
+  content: string;
+  createdAt: string;
+}
+
+export const fetchAIReports = async (): Promise<DailyAIReport[]> => {
+  try {
+    // Replace with your actual route mapping
+    const response = await fetch(API_ROUTES.AIAGENT.GET_AI_REPORT, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (result.success) return result.data;
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch reports:", error);
+    return [];
+  }
+};
+
+
+
+// ==========================================
+// 2. API FUNCTIONS (e.g., store/aiagent/aiagent.ts)
+// ==========================================
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  isPinned: boolean;
+  updatedAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "model" | "function";
+  content: string;
+  createdAt: string;
+}
+
+// ------------------------------------------
+// ADMIN CHAT FUNCTIONS
+// ------------------------------------------
+
+export const sendAdminAgentMessage = async (message: string, sessionId?: string | null) => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.ADMIN_SEND_MESSAGE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ message, sessionId }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    return result; // Expected: { success: true, data: { text: "...", sessionId: "..." } }
+  } catch (error) {
+    console.error("Failed to send admin message:", error);
+    throw error;
+  }
+};
+
+export const fetchAdminAgentSessions = async (): Promise<ChatSession[]> => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.ADMIN_GET_SESSIONS, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (result.success) return result.data;
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch admin sessions:", error);
+    return [];
+  }
+};
+
+export const fetchAdminSessionMessages = async (sessionId: string): Promise<ChatMessage[]> => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.ADMIN_GET_MESSAGES(sessionId), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (result.success) return result.data;
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch admin session messages:", error);
+    return [];
+  }
+};
+
+export const toggleAdminSessionPin = async (sessionId: string) => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.ADMIN_TOGGLE_PIN(sessionId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    return result;
+  } catch (error) {
+    console.error("Failed to toggle admin session pin:", error);
+    throw error;
+  }
+};
+
+export const deleteAdminAgentSession = async (sessionId: string) => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.ADMIN_DELETE_SESSION(sessionId), {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    return result;
+  } catch (error) {
+    console.error("Failed to delete admin session:", error);
+    throw error;
+  }
+};
+
+// ------------------------------------------
+// EMPLOYEE CHAT FUNCTIONS
+// ------------------------------------------
+
+export const sendEmployeeAgentMessage = async (message: string, sessionId?: string | null) => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.EMPLOYEE_SEND_MESSAGE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ message, sessionId }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    return result;
+  } catch (error) {
+    console.error("Failed to send employee message:", error);
+    throw error;
+  }
+};
+
+export const fetchEmployeeAgentSessions = async (): Promise<ChatSession[]> => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.EMPLOYEE_GET_SESSIONS, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (result.success) return result.data;
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch employee sessions:", error);
+    return [];
+  }
+};
+
+export const fetchEmployeeSessionMessages = async (sessionId: string): Promise<ChatMessage[]> => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.EMPLOYEE_GET_MESSAGES(sessionId), {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (result.success) return result.data;
+    return [];
+  } catch (error) {
+    console.error("Failed to fetch employee session messages:", error);
+    return [];
+  }
+};
+
+export const toggleEmployeeSessionPin = async (sessionId: string) => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.EMPLOYEE_TOGGLE_PIN(sessionId), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    return result;
+  } catch (error) {
+    console.error("Failed to toggle employee session pin:", error);
+    throw error;
+  }
+};
+
+export const deleteEmployeeAgentSession = async (sessionId: string) => {
+  try {
+    const response = await fetch(API_ROUTES.AIAGENT.EMPLOYEE_DELETE_SESSION(sessionId), {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.message);
+    return result;
+  } catch (error) {
+    console.error("Failed to delete employee session:", error);
+    throw error;
+  }
+};

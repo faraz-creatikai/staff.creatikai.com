@@ -22,19 +22,19 @@ export const API_ROUTES = {
     ASSIGNCONTACT: `${BASE_URL}/contact/assign`
   },
   CUSTOMER: {
-    DASHBOARD_STATS_COUNT:`${BASE_URL}/customer/dashboard/stats-count`,
+    DASHBOARD_STATS_COUNT: `${BASE_URL}/customer/dashboard/stats-count`,
     DISTRIBUTION_COUNT: (groupby: string) => `${BASE_URL}/customer/dashboard/distribution?groupBy=${groupby}`,
     EMPLOYEE_HIGHLIGHTS: `${BASE_URL}/customer/dashboard/employee/highlights`,
     LEADSOURCE_STATS: `${BASE_URL}/customer/dashboard/lead-source-stats`,
-    LEADTEMPERATURE_STATS:`${BASE_URL}/customer/dashboard/lead-temperature-stats`,
-    VISITER_CHART_STATS:`${BASE_URL}/customer/dashboard/visiter-chart-stats`,
-    FOLLOWUP_CHART_STATS:`${BASE_URL}/customer/dashboard/followup-chart-stats`,
-    LOCATION_STATS:`${BASE_URL}/customer/dashboard/customer-location-stats`,
-    RADAR_CHART_STATS:`${BASE_URL}/customer/dashboard/radar-chart-stats`,
+    LEADTEMPERATURE_STATS: `${BASE_URL}/customer/dashboard/lead-temperature-stats`,
+    VISITER_CHART_STATS: `${BASE_URL}/customer/dashboard/visiter-chart-stats`,
+    FOLLOWUP_CHART_STATS: `${BASE_URL}/customer/dashboard/followup-chart-stats`,
+    LOCATION_STATS: `${BASE_URL}/customer/dashboard/customer-location-stats`,
+    RADAR_CHART_STATS: `${BASE_URL}/customer/dashboard/radar-chart-stats`,
     GET_ALL: `${BASE_URL}/customer`,
-    GET_CUSTOMER_FIELDS_VALUES:`${BASE_URL}/customer/get-customer-fields-values`,
+    GET_CUSTOMER_FIELDS_VALUES: `${BASE_URL}/customer/get-customer-fields-values`,
     GET_ALL_TOTAL: `${BASE_URL}/customer/all`,
-    GET_CUSTOMER_COUNT:`${BASE_URL}/customer/count`,
+    GET_CUSTOMER_COUNT: `${BASE_URL}/customer/count`,
     GET_FAVOURITES_CUSTOMER: `${BASE_URL}/customer/favouriteS/all`,
     GET_TODAY_ALL: `${BASE_URL}/customer/today`,
     GET_BY_ID: (id: string) => `${BASE_URL}/customer/${id}`,
@@ -63,11 +63,11 @@ export const API_ROUTES = {
     GETARCHIEVEDCUSTOMER: `${BASE_URL}/customer/archived`,
     GET_ARCHIEVEDCUSTOMER_BY_PARAMS: (params: string) => `${BASE_URL}/customer/archived?${params}`,
     ARCHIEVECUSTOMER: `${BASE_URL}/customer/archive`,
-    UNARCHIEVECUSTOMER:  `${BASE_URL}/customer/unarchive`,
+    UNARCHIEVECUSTOMER: `${BASE_URL}/customer/unarchive`,
 
     ADDSHORTLIST: `${BASE_URL}/customer/shortlist`,
     GETSHORTLIST: (id: string) => `${BASE_URL}/customer/shortlist/${id}`,
-    REMOVESHORTLIST:`${BASE_URL}/customer/shortlist`,
+    REMOVESHORTLIST: `${BASE_URL}/customer/shortlist`,
     UPDATESHORTLIST: `${BASE_URL}/customer/shortlist`,
   },
   ATTENDANCE: {
@@ -80,10 +80,10 @@ export const API_ROUTES = {
     CLOCK_IN: `${BASE_URL}/attendance/employee/clock-in`,
     CLOCK_OUT: `${BASE_URL}/attendance/employee/clock-out`,
     GET_BY_ID: (id: string) => `${BASE_URL}/attendance/employee/${id}`,
-    
+
     // Gets default current month report
     GET_EMPLOYEE_REPORT: `${BASE_URL}/attendance/employee/report`,
-    
+
     // Allows filtering, e.g., params = "month=2026-09"
     GET_EMPLOYEE_REPORT_BY_PARAMS: (params: string) => `${BASE_URL}/attendance/employee/report?${params}`,
     EMPLOYEE_MANUAL_UPDATE: `${BASE_URL}/attendance/employee/manual-update`,
@@ -92,15 +92,15 @@ export const API_ROUTES = {
     // ADMIN ENDPOINTS
     // -----------------------------------------
     ADMIN_UPDATE_ATTENDANCE: `${BASE_URL}/attendance/admin/update`,
-    
+
     // Gets default current month report for all employees
     GET_ADMIN_REPORT: `${BASE_URL}/attendance/admin/report`,
-    
+
     // Allows filtering, e.g., params = "month=2026-09&employeeId=123&limit=50&skip=0"
     GET_ADMIN_REPORT_BY_PARAMS: (params: string) => `${BASE_URL}/attendance/admin/report?${params}`,
-    GET_ATTENDANCE_TREND: (startDate:string, endDate:string) => `${BASE_URL}/attendance/trend?startDate=${startDate}&endDate=${endDate}`,
-    GET_ATTENDANCE_OVERVIEW: (startDate:string, endDate:string) => `${BASE_URL}/attendance/overview?startDate=${startDate}&endDate=${endDate}`
-    
+    GET_ATTENDANCE_TREND: (startDate: string, endDate: string) => `${BASE_URL}/attendance/trend?startDate=${startDate}&endDate=${endDate}`,
+    GET_ATTENDANCE_OVERVIEW: (startDate: string, endDate: string) => `${BASE_URL}/attendance/overview?startDate=${startDate}&endDate=${endDate}`
+
   },
   COMPANYPROJECTS: {
     GET_ALL: `${BASE_URL}/com/pro`,
@@ -141,7 +141,7 @@ export const API_ROUTES = {
     UPDATE: (id: string) => `${BASE_URL}/sch/${id}`,
     DELETE: `${BASE_URL}/sch`,
   },
-TASK: {
+  TASK: {
     // -----------------------------------------
     // ADMIN ROUTES (CRM Portal)
     // -----------------------------------------
@@ -168,6 +168,10 @@ TASK: {
     //AI ROUTES
     GENERATE_SUBTASKS_AI: `${BASE_URL}/task/admin/ai/generate-subtasks`,
     ASSIGN_TASK_AI: `${BASE_URL}/task/admin/ai/assign`,
+
+    EMPLOYEE_SUBMIT_MACRO_REVIEW: (id: string) => `${BASE_URL}/task/employee/${id}/submit-review`,
+    SUBTASK_VERIFY_AI: (id: string) => `${BASE_URL}/task/employee/subtask/${id}/verify`,
+
   },
   NOTIFICATIONS: {
     GET_ALL: `${BASE_URL}/notifications`,
@@ -183,8 +187,23 @@ TASK: {
     UPDATE: (id: string) => `${BASE_URL}/aiagent/${id}`,
     DELETE: (id: string) => `${BASE_URL}/aiagent/${id}`,
     ASSIGNAIAGENT: `${BASE_URL}/aiagent/assign`,
-    RUNWEBHOOKAGENT:`${BASE_URL}/aiagent/run-webhook-agent`,
-    COMPARE_PRODUCT_PRICE:`${BASE_URL}/aiagent/compare-product-price`,
+    RUNWEBHOOKAGENT: `${BASE_URL}/aiagent/run-webhook-agent`,
+    COMPARE_PRODUCT_PRICE: `${BASE_URL}/aiagent/compare-product-price`,
+    GET_AI_REPORT: `${BASE_URL}/aiagent/ai-reports`,
+
+// Admin Routes
+    ADMIN_SEND_MESSAGE: `${BASE_URL}/aiagent/admin/message`,
+    ADMIN_GET_SESSIONS: `${BASE_URL}/aiagent/admin/sessions`,
+    ADMIN_GET_MESSAGES: (sessionId: string) => `${BASE_URL}/aiagent/admin/sessions/${sessionId}/messages`,
+    ADMIN_TOGGLE_PIN: (sessionId: string) => `${BASE_URL}/aiagent/admin/sessions/${sessionId}/pin`,
+    ADMIN_DELETE_SESSION: (sessionId: string) => `${BASE_URL}/aiagent/admin/sessions/${sessionId}`,
+
+    // Employee Routes
+    EMPLOYEE_SEND_MESSAGE: `${BASE_URL}/aiagent/employee/message`,
+    EMPLOYEE_GET_SESSIONS: `${BASE_URL}/aiagent/employee/sessions`,
+    EMPLOYEE_GET_MESSAGES: (sessionId: string) => `${BASE_URL}/aiagent/employee/sessions/${sessionId}/messages`,
+    EMPLOYEE_TOGGLE_PIN: (sessionId: string) => `${BASE_URL}/aiagent/employee/sessions/${sessionId}/pin`,
+    EMPLOYEE_DELETE_SESSION: (sessionId: string) => `${BASE_URL}/aiagent/employee/sessions/${sessionId}`,
   },
   TABBLY: {
     GETCURRENTAGENT: `${BASE_URL}/tabbly/current-agent`,
@@ -453,8 +472,8 @@ TASK: {
       UPDATE: (id: string) => `${BASE_URL}/v1/templates/${id}`,
       DELETE: (id: string) => `${BASE_URL}/v1/templates/${id}`,
       MAILALL: `${BASE_URL}/v1/messages/email`,
-      FILEUPLOAD:`${BASE_URL}/v1/messages/uploads/file`,
-      SEND_EMAIL_VIA_AI:`${BASE_URL}/v1/messages/send-email-via-ai`
+      FILEUPLOAD: `${BASE_URL}/v1/messages/uploads/file`,
+      SEND_EMAIL_VIA_AI: `${BASE_URL}/v1/messages/send-email-via-ai`
     },
     WHATSAPP: {
       GET_ALL: `${BASE_URL}/v1/templates?type=whatsapp`,
@@ -466,10 +485,10 @@ TASK: {
       WHATSAPPALL: `${BASE_URL}/v1/messages/whatsapp`,
       WHATSAPP_CONNECTION_STATUS: `${BASE_URL}/v1/messages/whatsapp-connection-status`,
       WHATSAPP_CONNECTION_LOGOUT: `${BASE_URL}/v1/messages/whatsapp-connection-logout`,
-      WHATSAPP_STOP_IDLE:`${BASE_URL}/v1/messages/whatsapp-stop-idle`,
+      WHATSAPP_STOP_IDLE: `${BASE_URL}/v1/messages/whatsapp-stop-idle`,
       WHATSAPP_CONNECTION_PAIRING_CODE: `${BASE_URL}/v1/messages/whatsapp-connection-pairing-code`,
-      WHATSAPP_PROPERTIES:`${BASE_URL}/v1/messages/whatsapp/send-properties`,
-      WHATSAPP_DIRECT_MESSAGE:`${BASE_URL}/v1/messages/whatsapp/direct-message`,
+      WHATSAPP_PROPERTIES: `${BASE_URL}/v1/messages/whatsapp/send-properties`,
+      WHATSAPP_DIRECT_MESSAGE: `${BASE_URL}/v1/messages/whatsapp/direct-message`,
     },
     CALL: {
       CALLCUSTOMER: `${BASE_URL}/v1/messages/call`
@@ -520,14 +539,14 @@ TASK: {
 
 
 
-  ACTIVITY:{
+  ACTIVITY: {
     GETFEED: `${BASE_URL}/activity/feed`,
     GETSUMMARY: `${BASE_URL}/activity/summary`,
     GETUSERS: `${BASE_URL}/activity/users`,
     GETTIMELINE: (adminId: string) => `${BASE_URL}/activity/timeline/${adminId}`,
-     GETCUSTOMERS: `${BASE_URL}/activity/customers`,
-        GETFOLLOWUPS: `${BASE_URL}/activity/followups`,
-        GETRECORD: (entity: string, id: string) => `${BASE_URL}/activity/record/${entity}/${id}`,
+    GETCUSTOMERS: `${BASE_URL}/activity/customers`,
+    GETFOLLOWUPS: `${BASE_URL}/activity/followups`,
+    GETRECORD: (entity: string, id: string) => `${BASE_URL}/activity/record/${entity}/${id}`,
   },
 
 
@@ -536,11 +555,11 @@ TASK: {
     SIGNUP: `${BASE_URL}/admin/signup`,
     LOGIN: `${BASE_URL}/admin/login`,
     LOGOUT: `${BASE_URL}/admin/logout`,
-    AI:{
-      SAVE_API_KEY:`${BASE_URL}/admin/ai/save-api-key`,
-      GET_ALL:`${BASE_URL}/admin/ai/get-all`,
-      UPDATE_API_KEY:(id:string)=>`${BASE_URL}/admin/ai/update-api-key/${id}`,
-      DELETE_API_KEY:(id:string)=>`${BASE_URL}/admin/ai/delete-api-key/${id}`
+    AI: {
+      SAVE_API_KEY: `${BASE_URL}/admin/ai/save-api-key`,
+      GET_ALL: `${BASE_URL}/admin/ai/get-all`,
+      UPDATE_API_KEY: (id: string) => `${BASE_URL}/admin/ai/update-api-key/${id}`,
+      DELETE_API_KEY: (id: string) => `${BASE_URL}/admin/ai/delete-api-key/${id}`
     },
 
     // 🔐 Protected Routes
@@ -556,8 +575,8 @@ TASK: {
     DELETE: (id: String) => `${BASE_URL}/admin/${id}`,
     MY_ACTIVE_AGENTS: `${BASE_URL}/admin/my-active-agents`,
 
-    GENERATE_CRM_API_KEY:`${BASE_URL}/admin/generate-crm-api-key`,
-    DELETE_CRM_API_KEY:(keyId:string)=>`${BASE_URL}/admin/crm-api-key/${keyId}`,
+    GENERATE_CRM_API_KEY: `${BASE_URL}/admin/generate-crm-api-key`,
+    DELETE_CRM_API_KEY: (keyId: string) => `${BASE_URL}/admin/crm-api-key/${keyId}`,
     GET_CRM_API_KEYS: `${BASE_URL}/admin/crm-api-keys`
   },
 

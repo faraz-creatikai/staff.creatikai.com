@@ -2,9 +2,14 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { getFilteredAdminAttendanceReport, adminUpdateAttendance } from "@/store/attendance/attendance";
-import { Search, Filter, Calendar as CalendarIcon, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Clock, Edit, Check, AlertCircle, Home, CheckCircle2, XCircle, CalendarCheck, CheckCircle } from "lucide-react";
+import { Search, Filter, Calendar as CalendarIcon, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, X, Clock, Edit, Check, AlertCircle, Home, CheckCircle2, XCircle, CalendarCheck, CheckCircle, FileText, Table } from "lucide-react";
 import toast from "react-hot-toast";
 import CustomerViewDialog from "../component/popups/CustomerviewDialog";
+
+// External libraries for generating structured Excel and PDF files
+import * as XLSX from "xlsx";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // --- UTILITY FUNCTIONS ---
 const getLocalDateString = (date: Date) => {
@@ -29,7 +34,6 @@ const getDaysOfWeek = (startDate: Date) => {
   return days;
 };
 
-// 6 full weeks (42 days) covering the given month, for the "Jump to Week" calendar.
 const getMonthGrid = (viewDate: Date) => {
   const firstOfMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
   const gridStart = getStartOfWeek(firstOfMonth);
@@ -47,8 +51,14 @@ const formatHours = (minutes: number) => {
   return `${m}m`;
 };
 
-// Shared "Jump to Week" calendar grid — used inline on desktop and inside the mobile modal
-// so both surfaces render the exact same markup/styling.
+const formatStatusText = (status: string) => {
+  if (status === 'workfromhome') return 'WFH';
+  if (status === 'half_day') return 'Half Day';
+  if (!status) return 'None';
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+// --- SUB-COMPONENTS ---
 function JumpToWeekCalendar({
   viewDate,
   setViewDate,
@@ -111,7 +121,7 @@ function JumpToWeekCalendar({
         ))}
       </div>
 
-      {/* Day grid — click any date to jump to its week */}
+      {/* Day grid */}
       <div className="grid grid-cols-7 gap-y-0.5">
         {getMonthGrid(viewDate).map((d) => {
           const inMonth = d.getMonth() === viewDate.getMonth();
@@ -150,15 +160,18 @@ export default function AdminAttendanceCalendar() {
   const [animStyle, setAnimStyle] = useState("translate-x-0 opacity-100 transition-all duration-300 ease-out");
   const [isAnimating, setIsAnimating] = useState(false);
 
-  // "Jump to Week" calendar — always visible on desktop; opens as a modal on mobile
+  // Dropdown States
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
+
+  // "Jump to Week" calendar
   const [viewDate, setViewDate] = useState<Date>(currentWeekStart);
   const [showMobileCalendar, setShowMobileCalendar] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [customerToView, setCustomerToView] = useState<any>(null);
 
   // Modal States
-  const [editModal, setEditModal] = useState<any>(null); // For standard editing
-  const [approveModal, setApproveModal] = useState<any>(null); // For reviewing requests
+  const [editModal, setEditModal] = useState<any>(null);
+  const [approveModal, setApproveModal] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const weekDays = useMemo(() => getDaysOfWeek(currentWeekStart), [currentWeekStart]);
@@ -187,11 +200,102 @@ export default function AdminAttendanceCalendar() {
     return () => clearTimeout(timeoutId);
   }, [currentWeekStart, searchQuery, activeFilters]);
 
-  // Keep the calendar's displayed month in sync with whichever week is selected
-  // (via the big slider buttons, the month input, or a click on the calendar itself).
   useEffect(() => {
     setViewDate(currentWeekStart);
   }, [currentWeekStart]);
+
+  // --- REPORT GENERATION (EXCEL & PDF) ---
+  const generateExportData = () => {
+    if (groupedData.length === 0) {
+      toast.error("No data to export for this week.");
+      return null;
+    }
+
+    return groupedData.map(group => {
+      const row: any = {
+        "Employee Name": group.employee.customerName
+      };
+
+      let activeDaysCount = 0;
+
+      weekDays.forEach(day => {
+        const dateStr = getLocalDateString(day);
+        const record = group.weeklyData[dateStr];
+        const dayLabel = day.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        if (!record) {
+          row[dayLabel] = "-";
+        } else {
+          let cellText = formatStatusText(record.status);
+
+          if (['present', 'half_day', 'workfromhome'].includes(record.status)) {
+            activeDaysCount++;
+            if (record.totalMinutes > 0) {
+              cellText += ` (${formatHours(record.totalMinutes)})`;
+            }
+          }
+          row[dayLabel] = cellText;
+        }
+      });
+
+      row["Active Days"] = `${activeDaysCount}/7`;
+      return row;
+    });
+  };
+
+  const exportToExcel = () => {
+    const data = generateExportData();
+    if (!data) return;
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Weekly Attendance");
+
+    // Auto-size columns slightly for better readability
+    const colWidths = [{ wch: 25 }, ...weekDays.map(() => ({ wch: 18 })), { wch: 15 }];
+    worksheet['!cols'] = colWidths;
+
+    XLSX.writeFile(workbook, `Attendance_Report_${getLocalDateString(weekDays[0])}.xlsx`);
+    setIsDownloadOpen(false);
+    toast.success("Excel report downloaded");
+  };
+
+  const exportToPDF = () => {
+    const data = generateExportData();
+    if (!data) return;
+
+    // Use landscape for wide tables
+    const doc = new jsPDF("landscape");
+    const weekStart = weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const weekEnd = weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    doc.setFontSize(16);
+    doc.text("Weekly Attendance Report", 14, 15);
+
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Period: ${weekStart} - ${weekEnd}`, 14, 22);
+
+    const columns = Object.keys(data[0]);
+    // Force TypeScript to safely map to a string matrix to eliminate type mismatch
+    const rows = data.map(row => Object.values(row).map(val => String(val ?? ""))) as string[][];
+
+    autoTable(doc, {
+      head: [columns],
+      body: rows,
+      startY: 28,
+      theme: 'grid',
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [0, 102, 204] },
+      columnStyles: {
+        0: { fontStyle: 'bold' }
+      }
+    });
+
+    doc.save(`Attendance_Report_${getLocalDateString(weekDays[0])}.pdf`);
+    setIsDownloadOpen(false);
+    toast.success("PDF report downloaded");
+  };
 
   // --- SLIDER NAV HANDLERS ---
   const handleNextWeek = () => {
@@ -260,7 +364,7 @@ export default function AdminAttendanceCalendar() {
       status: approveModal.status,
       clockIn: null,
       clockOut: null,
-      notes: approveModal.notes // Keep the employee's reason
+      notes: approveModal.notes
     });
 
     if (res?.success) {
@@ -276,7 +380,7 @@ export default function AdminAttendanceCalendar() {
     const res = await adminUpdateAttendance({
       employeeId: approveModal.customerId,
       dateString: approveModal.dateString,
-      status: "absent", // Automatically mark as absent if denied
+      status: "absent",
       clockIn: null,
       clockOut: null,
       notes: `[REJECTED] ${approveModal.notes}`
@@ -314,22 +418,15 @@ export default function AdminAttendanceCalendar() {
 
 
   const jumpToMonth = (monthStr: string) => {
-    // Prevent crash when the user clicks 'clear' (value becomes empty)
     if (!monthStr) {
-      // Option 1: Do nothing, just ignore the clear action
-      //return; 
-      
-      // Option 2 (Alternative): Reset to the current week if they clear it
-      setCurrentWeekStart(getStartOfWeek(new Date())); 
-     return;
+      setCurrentWeekStart(getStartOfWeek(new Date()));
+      return;
     }
-
     const [year, month] = monthStr.split('-');
     const newDate = new Date(Number(year), Number(month) - 1, 1);
     setCurrentWeekStart(getStartOfWeek(newDate));
   };
 
-  // Clicking any date in the "Jump to Week" calendar selects the week it falls in.
   const selectDate = (d: Date) => {
     setCurrentWeekStart(getStartOfWeek(d));
   };
@@ -399,7 +496,7 @@ export default function AdminAttendanceCalendar() {
   }
 
   return (
-    <div className="min-h-screen space-y-6 font-sans pb-10">
+    <div className="min-h-screen space-y-6 font-sans pb-10 flex flex-col">
       <CustomerViewDialog
         isOpen={isViewOpen}
         customerId={customerToView}
@@ -420,12 +517,49 @@ export default function AdminAttendanceCalendar() {
             <p className="text-[var(--color-gray)] text-sm mt-1">Analyse and manage attendance records</p>
           </div>
         </div>
-        <button className="flex items-center gap-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-5 py-2.5 rounded-xl shadow-md transition-colors text-sm font-medium">
-          Download Report <Download size={16} />
-        </button>
+
+        {/* EXPORT REPORT DROPDOWN */}
+        <div className="relative ">
+          <button
+            onClick={() => setIsDownloadOpen(!isDownloadOpen)}
+            className="flex items-center gap-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-dark)] text-white px-5 py-2.5 rounded-xl shadow-md transition-all text-sm font-medium cursor-pointer active:scale-95"
+          >
+            Download Report <Download size={16} />
+          </button>
+
+          {isDownloadOpen && (
+            <>
+              {/* Added z-40 so it covers the page but stays behind the dropdown */}
+              <div className="fixed inset-0 " onClick={() => setIsDownloadOpen(false)} />
+
+              {/* FIX: left-0 for mobile, lg:left-auto lg:right-0 for desktop.  */}
+              <div className="absolute left-0 lg:left-auto lg:right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-[0_10px_40px_-10px_rgba(0,0,0,0.15)] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 ">
+                <div className="px-3 py-2 border-b border-gray-100 bg-gray-50/50">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Export Format</p>
+                </div>
+                <div className="p-1.5 flex flex-col gap-1">
+                  <button
+                    onClick={exportToPDF}
+                    className="flex items-center gap-3 cursor-pointer w-full px-3 py-2.5 text-left text-sm font-semibold text-gray-700 hover:bg-[var(--color-primary-lighter)] hover:text-[var(--color-primary-dark)] rounded-lg transition-colors cursor-pointer"
+                  >
+                    <div className="p-1.5 bg-red-50 text-red-600 rounded-md"><FileText size={16} /></div>
+                    Download as PDF
+                  </button>
+                  <button
+                    onClick={exportToExcel}
+                    className="flex items-center gap-3 cursor-pointer w-full px-3 py-2.5 text-left text-sm font-semibold text-gray-700 hover:bg-[var(--color-primary-lighter)] hover:text-[var(--color-primary-dark)] rounded-lg transition-colors cursor-pointer"
+                  >
+                    <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-md"><Table size={16} /></div>
+                    Download as Excel
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* TOP STATS CARDS — 2-up compact grid on phones only; md/lg untouched */}
+      {/* TOP STATS CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
         <div className="bg-white p-3 md:p-5 rounded-2xl shadow-sm border border-[var(--color-muted)]">
           <div className="flex items-center gap-2 text-gray-800 font-semibold mb-1 md:mb-2 text-xs md:text-base">
@@ -473,19 +607,6 @@ export default function AdminAttendanceCalendar() {
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-[var(--color-muted)] rounded-xl outline-none focus:ring-2 focus:ring-[var(--color-primary)] text-sm"
             />
           </div>
-
-          {/* Jump to Month Picker */}
-          <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-            <div className="flex items-center bg-gray-50 border border-[var(--color-muted)] rounded-xl px-3 py-2">
-              <CalendarIcon size={16} className="text-[var(--color-gray)] mr-2" />
-              <input
-                type="month"
-                value={getLocalDateString(currentWeekStart).slice(0, 7)}
-                onChange={(e) => jumpToMonth(e.target.value)}
-                className="bg-transparent text-sm font-semibold text-gray-700 outline-none cursor-pointer"
-              />
-            </div>
-          </div>
         </div>
 
         {/* Status Filter Chips + CLEAR FILTERS */}
@@ -512,232 +633,132 @@ export default function AdminAttendanceCalendar() {
         </div>
       </div>
 
-      {/* ANALYTICS SECTION */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
 
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-[var(--color-muted)] p-6 flex flex-col gap-6">
+      {/* 
+        ---------------------------------------------------------
+        ANALYTICS & MOBILE TABLE RESPONSIVE WRAPPER 
+        We use flex-col on mobile and grid on lg to control order!
+        ---------------------------------------------------------
+      */}
+      <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4">
 
-          {/* TOP SECTION */}
+        {/* 1. DONUT & THIS PERIOD (Mobile: Bottom, PC: Left 2 columns) */}
+        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-[var(--color-muted)] p-6 flex flex-col gap-6 order-4 lg:order-1">
           <div className="flex flex-col sm:flex-row gap-8">
-
-            {/* DONUT */}
             <div className="flex flex-col items-center">
               <h3 className="text-sm font-bold text-gray-800 mb-4 self-start sm:self-center">
                 This Period
               </h3>
-
               <div
                 className="relative w-36 h-36 rounded-full flex items-center justify-center shadow-inner"
                 style={{ background: chartGradient }}
               >
                 <div className="w-28 h-28 bg-white rounded-full flex flex-col items-center justify-center shadow-sm">
-                  <span className="text-3xl font-extrabold text-gray-900">
-                    {overallPct}%
-                  </span>
-
+                  <span className="text-3xl font-extrabold text-gray-900">{overallPct}%</span>
                   <span className="text-[10px] text-gray-500 font-medium uppercase tracking-wider text-center leading-tight">
-                    Overall
-                    <br />
-                    Attendance
+                    Overall<br />Attendance
                   </span>
                 </div>
               </div>
-
               <p className="text-xs text-gray-500 mt-4 font-medium">
                 Total Records:
-                <span className="font-bold text-gray-900 ml-1">
-                  {totalLogs}
-                </span>
+                <span className="font-bold text-gray-900 ml-1">{totalLogs}</span>
               </p>
             </div>
 
-            {/* STATUS BREAKDOWN */}
             <div className="flex-1 w-full space-y-4">
-
               <div className="flex justify-between items-center text-sm">
                 <span className="flex items-center gap-2 font-semibold text-gray-700">
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                  Present
+                  <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div> Present
                 </span>
-
                 <span className="font-bold text-gray-900">
                   {todayStats.present}
-                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">
-                    {Math.round(getPct(todayStats.present))}%
-                  </span>
+                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">{Math.round(getPct(todayStats.present))}%</span>
                 </span>
               </div>
-
               <div className="flex justify-between items-center text-sm">
                 <span className="flex items-center gap-2 font-semibold text-gray-700">
-                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                  WFH
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> WFH
                 </span>
-
                 <span className="font-bold text-gray-900">
                   {todayStats.workfromhome}
-                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">
-                    {Math.round(getPct(todayStats.workfromhome))}%
-                  </span>
+                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">{Math.round(getPct(todayStats.workfromhome))}%</span>
                 </span>
               </div>
-
               <div className="flex justify-between items-center text-sm">
                 <span className="flex items-center gap-2 font-semibold text-gray-700">
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div>
-                  Half Day
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500"></div> Half Day
                 </span>
-
                 <span className="font-bold text-gray-900">
                   {todayStats.half_day}
-                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">
-                    {Math.round(getPct(todayStats.half_day))}%
-                  </span>
+                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">{Math.round(getPct(todayStats.half_day))}%</span>
                 </span>
               </div>
-
               <div className="flex justify-between items-center text-sm">
                 <span className="flex items-center gap-2 font-semibold text-gray-700">
-                  <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div>
-                  On Leave
+                  <div className="w-2.5 h-2.5 rounded-full bg-purple-500"></div> On Leave
                 </span>
-
                 <span className="font-bold text-gray-900">
                   {todayStats.leave}
-                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">
-                    {Math.round(getPct(todayStats.leave))}%
-                  </span>
+                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">{Math.round(getPct(todayStats.leave))}%</span>
                 </span>
               </div>
-
               <div className="flex justify-between items-center text-sm">
                 <span className="flex items-center gap-2 font-semibold text-gray-700">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                  Absent
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div> Absent
                 </span>
-
                 <span className="font-bold text-gray-900">
                   {todayStats.absent}
-                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">
-                    {Math.round(getPct(todayStats.absent))}%
-                  </span>
+                  <span className="text-gray-400 font-normal ml-2 w-8 inline-block text-right">{Math.round(getPct(todayStats.absent))}%</span>
                 </span>
               </div>
-
             </div>
           </div>
 
-
-          {/* BOTTOM INSIGHTS */}
           <div className="border-t border-gray-100 pt-5 mt-auto">
-
-            {/*  <div className="flex items-center justify-between mb-4">
-              <div>
-                <h4 className="text-sm font-bold text-gray-800">
-                  Attendance Insights
-                </h4>
-
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Quick overview of this period
-                </p>
-              </div>
-
-              <span className="text-xs font-semibold text-gray-400">
-                This Period
-              </span>
-            </div> */}
-
-
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-
-              {/* OVERALL */}
               <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 font-medium">
-                    Attendance Rate
-                  </span>
-
-                  <span className="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center text-sm">
-                    %
-                  </span>
+                  <span className="text-xs text-gray-500 font-medium">Attendance Rate</span>
+                  <span className="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center text-sm">%</span>
                 </div>
-
                 <div className="mt-2 flex items-end gap-1">
-                  <span className="text-xl font-extrabold text-gray-900">
-                    {overallPct}%
-                  </span>
-
-                  <span className="text-[11px] text-gray-400 mb-1">
-                    overall
-                  </span>
+                  <span className="text-xl font-extrabold text-gray-900">{overallPct}%</span>
+                  <span className="text-[11px] text-gray-400 mb-1">overall</span>
                 </div>
               </div>
-
-
-              {/* PRESENT */}
               <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 font-medium">
-                    Present
-                  </span>
-
-                  <span className="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
-                    ✓
-                  </span>
+                  <span className="text-xs text-gray-500 font-medium">Present</span>
+                  <span className="w-7 h-7 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">✓</span>
                 </div>
-
                 <div className="mt-2 flex items-end gap-1">
-                  <span className="text-xl font-extrabold text-gray-900">
-                    {todayStats.present}
-                  </span>
-
-                  <span className="text-[11px] text-gray-400 mb-1">
-                    records
-                  </span>
+                  <span className="text-xl font-extrabold text-gray-900">{todayStats.present}</span>
+                  <span className="text-[11px] text-gray-400 mb-1">records</span>
                 </div>
               </div>
-
-
-              {/* ATTENTION */}
               <div className="rounded-xl bg-gray-50 border border-gray-100 px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 font-medium">
-                    Needs Attention
-                  </span>
-
-                  <span className="w-7 h-7 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">
-                    !
-                  </span>
+                  <span className="text-xs text-gray-500 font-medium">Needs Attention</span>
+                  <span className="w-7 h-7 rounded-lg bg-red-50 text-red-500 flex items-center justify-center">!</span>
                 </div>
-
                 <div className="mt-2 flex items-end gap-1">
-                  <span className="text-xl font-extrabold text-gray-900">
-                    {todayStats.absent + todayStats.half_day}
-                  </span>
-
-                  <span className="text-[11px] text-gray-400 mb-1">
-                    absent / half day
-                  </span>
+                  <span className="text-xl font-extrabold text-gray-900">{todayStats.absent + todayStats.half_day}</span>
+                  <span className="text-[11px] text-gray-400 mb-1">absent / half day</span>
                 </div>
               </div>
-
             </div>
           </div>
-
         </div>
 
-
-
-        {/* JUMP TO WEEK — always visible, no open/close toggle; shrinks on mobile */}
-        <div className="rounded-2xl border border-[var(--color-muted)] bg-white p-4 shadow-sm sm:p-6">
+        {/* 2. JUMP TO WEEK (Mobile: Top, PC: Column 3) */}
+        <div className="rounded-2xl border border-[var(--color-muted)] bg-white p-4 shadow-sm sm:p-6 order-1 lg:order-2">
           <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-gray-800">
             <div className="rounded-lg bg-[var(--color-primary-lighter)] p-1.5 text-[var(--color-primary)]">
               <CalendarIcon size={16} />
             </div>
             Jump to Week
           </h3>
-
-          {/* MOBILE/TABLET: compact trigger — opens the same calendar in a modal */}
           <button
             onClick={() => setShowMobileCalendar(true)}
             className="lg:hidden w-full flex items-center justify-between gap-2 bg-gray-50 border border-[var(--color-muted)] rounded-xl px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
@@ -747,8 +768,6 @@ export default function AdminAttendanceCalendar() {
             </span>
             <CalendarIcon size={16} className="text-[var(--color-primary)] shrink-0" />
           </button>
-
-          {/* DESKTOP: full inline calendar — unchanged */}
           <div className="hidden lg:block">
             <JumpToWeekCalendar
               viewDate={viewDate}
@@ -760,12 +779,142 @@ export default function AdminAttendanceCalendar() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-[var(--color-muted)] p-6 flex flex-col">
+        {/* 3. MOBILE ATTENDANCE LIST (Mobile: Middle, PC: Hidden) */}
+        <div className="lg:hidden space-y-3 order-2">
+          <div className="flex items-center justify-between bg-white rounded-xl border border-[var(--color-muted)] p-3">
+            <button
+              onClick={handlePrevWeek}
+              disabled={isAnimating}
+              className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-600 cursor-pointer disabled:opacity-50"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <h4 className="font-bold text-[var(--color-primary-darker)] text-sm text-center px-2">
+              {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </h4>
+            <button
+              onClick={handleNextWeek}
+              disabled={isAnimating}
+              className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-600 cursor-pointer disabled:opacity-50"
+            >
+              <ChevronRight size={18} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 px-2">
+            {weekDays.map((day, idx) => {
+              const isToday = getLocalDateString(day) === getLocalDateString(new Date());
+              return (
+                <div key={idx} className={`text-center leading-tight ${isToday ? 'text-[var(--color-primary)]' : 'text-gray-400'}`}>
+                  <div className="text-[10px] font-bold uppercase">{day.toLocaleDateString('en-US', { weekday: 'narrow' })}</div>
+                  <div className="text-[9px] font-medium">{day.getDate()}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          {isFetching ? (
+            <div className="bg-white rounded-2xl border border-[var(--color-muted)] p-10 flex justify-center">
+              <span className="inline-block w-8 h-8 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></span>
+            </div>
+          ) : groupedData.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-[var(--color-muted)] p-10 text-center text-gray-500 text-sm">
+              No attendance data found for this period.
+            </div>
+          ) : (
+            groupedData.map((group) => {
+              let activeDaysCount = 0;
+              weekDays.forEach(d => {
+                const s = group.weeklyData[getLocalDateString(d)]?.status;
+                if (s === 'present' || s === 'workfromhome' || s === 'half_day') activeDaysCount++;
+              });
+
+              return (
+                <div key={group.employeeId} className="bg-white rounded-2xl border border-[var(--color-muted)] shadow-sm p-3">
+                  <div className="flex items-center gap-3 mb-3 " >
+                    {group.employee.image ? (
+                      <img
+                        src={group.employee.image}
+                        alt={group.employee.customerName}
+                        className="w-9 h-9 rounded-full object-cover shadow-inner shrink-0 border border-gray-200 cursor-pointer"
+                        onClick={() => handleViewClick(group.employeeId)}
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary-darker)] font-bold text-sm shrink-0 shadow-inner cursor-pointer"
+                        onClick={() => handleViewClick(group.employeeId)}>
+                        {group.employee.customerName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="overflow-hidden">
+                      <p className="font-bold text-gray-900 text-sm truncate">{group.employee.customerName}</p>
+                      <p className="text-[11px] text-gray-400 font-medium">
+                        Actives: <span className="text-[var(--color-primary)]">{activeDaysCount}/7</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {weekDays.map((day, idx) => {
+                      const dateStr = getLocalDateString(day);
+                      const record = group.weeklyData[dateStr];
+                      const isToday = dateStr === getLocalDateString(new Date());
+                      const isPending =
+                        record &&
+                        !record.clockIn &&
+                        !record.clockOut &&
+                        !record.markedByAdminId &&
+                        ['leave', 'workfromhome'].includes(record.status);
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() =>
+                            isPending
+                              ? openApproveModal(group.employeeId, group.employee.customerName, day, record)
+                              : openEditModal(group.employeeId, group.employee.customerName, day, record)
+                          }
+                          className={`relative flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 cursor-pointer ${isToday ? 'bg-[var(--color-primary-lighter)]/20' : ''}`}
+                        >
+                          {isPending && (
+                            <span className="absolute top-0.5 right-0.5 flex h-2 w-2 z-10">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500 border border-white"></span>
+                            </span>
+                          )}
+
+                          {record ? (
+                            record.status === 'present'
+                              ? <CheckCircle2 size={18} className="text-green-500" strokeWidth={2.5} />
+                              : record.status === 'half_day'
+                                ? <Clock size={18} className="text-yellow-500" strokeWidth={2.5} />
+                                : record.status === 'workfromhome'
+                                  ? <Home size={17} className={isPending ? "text-orange-500" : "text-blue-500"} strokeWidth={2.5} />
+                                  : record.status === 'leave'
+                                    ? <CalendarIcon size={17} className={isPending ? "text-orange-500" : "text-purple-500"} strokeWidth={2.5} />
+                                    : <XCircle size={18} className="text-red-500" strokeWidth={2.5} />
+                          ) : (
+                            day.getDay() === 0 ? (
+                              <span className="w-1.5 h-1.5 rounded-full bg-gray-200"></span>
+                            ) : (
+                              <span className="text-gray-300 font-bold text-xs">-</span>
+                            )
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* 4. QUICK INSIGHTS (Mobile: Below Table, PC: Column 4) */}
+        <div className="bg-white rounded-2xl shadow-sm border border-[var(--color-muted)] p-6 flex flex-col order-3 lg:order-3">
           <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2 mb-4">
             <div className="p-1.5 bg-[var(--color-primary-lighter)] text-[var(--color-primary)] rounded-lg"><AlertCircle size={16} /></div> Quick Insights
           </h3>
           <div className="flex-1 flex flex-col justify-between gap-3">
-
             {pendingRequestsCount > 0 && (
               <div className="flex gap-3 items-start bg-orange-50 p-4 border border-orange-100 rounded-xl">
                 <div className="w-8 h-8 rounded-full bg-white shadow-sm text-orange-500 flex items-center justify-center shrink-0">
@@ -774,21 +923,18 @@ export default function AdminAttendanceCalendar() {
                 <p className="text-sm text-orange-800 font-medium leading-snug">You have <span className="font-bold">{pendingRequestsCount} pending requests</span> to review.</p>
               </div>
             )}
-
             <div className="flex gap-3 items-start bg-gray-50 border border-gray-100 rounded-xl p-4">
               <div className={`w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 ${insight1.color}`}>
                 <insight1.icon size={16} />
               </div>
               <p className="text-sm text-gray-600 leading-snug">{insight1.text}</p>
             </div>
-
             <div className="flex gap-3 items-start bg-gray-50 border border-gray-100 rounded-xl p-4">
               <div className={`w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 ${insight2.color}`}>
                 <insight2.icon size={16} />
               </div>
               <p className="text-sm text-gray-600 leading-snug">{insight2.text}</p>
             </div>
-
             {insight3 && (
               <div className="flex gap-3 items-start bg-gray-50 border border-gray-100 rounded-xl p-4">
                 <div className={`w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center shrink-0 ${insight3.color}`}>
@@ -801,12 +947,9 @@ export default function AdminAttendanceCalendar() {
         </div>
       </div>
 
-
-
-      {/* CALENDAR GRID WITH BIG SLIDER BUTTONS — desktop (lg+) only, unchanged */}
+      {/* CALENDAR GRID WITH BIG SLIDER BUTTONS — desktop (lg+) only */}
       <div className="relative mx-5 hidden lg:block">
 
-        {/* BIG PREV BUTTON - 50% OUTSIDE / 50% INSIDE */}
         <button
           onClick={handlePrevWeek}
           disabled={isAnimating}
@@ -828,10 +971,8 @@ export default function AdminAttendanceCalendar() {
           <ChevronLeft size={24} />
         </button>
 
-        {/* TABLE CONTAINER */}
         <div className="flex-1 overflow-hidden bg-white border border-[var(--color-muted)] rounded-2xl shadow-sm">
 
-          {/* Internal Header for Date Range (for aesthetics) */}
           <div className="p-4 bg-gray-50 border-b border-[var(--color-muted)] flex justify-between items-center md:justify-center">
 
             <button
@@ -856,7 +997,6 @@ export default function AdminAttendanceCalendar() {
           <div className="overflow-x-auto pb-4">
             <table className={`w-full text-left border-collapse min-w-[1000px] ${animStyle}`}>
 
-              {/* KEEP YOUR ENTIRE EXISTING THEAD EXACTLY AS-IS */}
               <thead>
                 <tr className="border-b border-[var(--color-muted)] bg-white">
                   <th className="py-4 px-6 text-sm font-semibold text-gray-700 w-44 border-r border-[var(--color-muted)] sticky left-0 bg-white z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)]">
@@ -880,7 +1020,6 @@ export default function AdminAttendanceCalendar() {
                 </tr>
               </thead>
 
-              {/* KEEP YOUR ENTIRE EXISTING TBODY EXACTLY AS-IS */}
               <tbody className="divide-y divide-[var(--color-muted)]">
                 {isFetching ? (
                   <tr>
@@ -936,7 +1075,7 @@ export default function AdminAttendanceCalendar() {
 
                               <p className="text-xs text-gray-400 font-medium">
                                 Actives:
-                                <span className="text-[var(--color-primary)]">
+                                <span className="text-[var(--color-primary)] ml-1">
                                   {activeDaysCount}/7
                                 </span>
                               </p>
@@ -1041,7 +1180,7 @@ export default function AdminAttendanceCalendar() {
                                   day.getDay() === 0 ? (
                                     <span className="w-1.5 h-1.5 rounded-full bg-gray-200"></span>
                                   ) : (
-                                    <span className="text-gray-300 font-bold">-</span>
+                                    <span className="text-gray-300 font-bold text-xs">-</span>
                                   )
                                 )}
                               </div>
@@ -1058,7 +1197,6 @@ export default function AdminAttendanceCalendar() {
           </div>
         </div>
 
-        {/* BIG NEXT BUTTON - 50% OUTSIDE / 50% INSIDE */}
         <button
           onClick={handleNextWeek}
           disabled={isAnimating}
@@ -1080,146 +1218,6 @@ export default function AdminAttendanceCalendar() {
           <ChevronRight size={24} />
         </button>
 
-      </div>
-
-      {/* MOBILE/TABLET ATTENDANCE LIST — replaces the wide table below lg so nothing scrolls sideways */}
-      <div className="lg:hidden space-y-3">
-
-        {/* Week nav header */}
-        <div className="flex items-center justify-between bg-white rounded-xl border border-[var(--color-muted)] p-3">
-          <button
-            onClick={handlePrevWeek}
-            disabled={isAnimating}
-            className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-600 cursor-pointer disabled:opacity-50"
-          >
-            <ChevronLeft size={18} />
-          </button>
-          <h4 className="font-bold text-[var(--color-primary-darker)] text-sm text-center px-2">
-            {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – {weekDays[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </h4>
-          <button
-            onClick={handleNextWeek}
-            disabled={isAnimating}
-            className="p-2 rounded-lg bg-gray-50 border border-gray-200 text-gray-600 cursor-pointer disabled:opacity-50"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-
-        {/* Weekday labels, aligned with the icon grid inside each employee card below */}
-        <div className="grid grid-cols-7 gap-1 px-2">
-          {weekDays.map((day, idx) => {
-            const isToday = getLocalDateString(day) === getLocalDateString(new Date());
-            return (
-              <div key={idx} className={`text-center leading-tight ${isToday ? 'text-[var(--color-primary)]' : 'text-gray-400'}`}>
-                <div className="text-[10px] font-bold uppercase">{day.toLocaleDateString('en-US', { weekday: 'narrow' })}</div>
-                <div className="text-[9px] font-medium">{day.getDate()}</div>
-              </div>
-            );
-          })}
-        </div>
-
-        {isFetching ? (
-          <div className="bg-white rounded-2xl border border-[var(--color-muted)] p-10 flex justify-center">
-            <span className="inline-block w-8 h-8 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></span>
-          </div>
-        ) : groupedData.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-[var(--color-muted)] p-10 text-center text-gray-500 text-sm">
-            No attendance data found for this period.
-          </div>
-        ) : (
-          groupedData.map((group) => {
-
-            let activeDaysCount = 0;
-            weekDays.forEach(d => {
-              const s = group.weeklyData[getLocalDateString(d)]?.status;
-              if (s === 'present' || s === 'workfromhome' || s === 'half_day') activeDaysCount++;
-            });
-
-            return (
-              <div key={group.employeeId} className="bg-white rounded-2xl border border-[var(--color-muted)] shadow-sm p-3">
-
-                <div className="flex items-center gap-3 mb-3 " >
-                  {group.employee.image ? (
-                    <img
-                      src={group.employee.image}
-                      alt={group.employee.customerName}
-                      className="w-9 h-9 rounded-full object-cover shadow-inner shrink-0 border border-gray-200 cursor-pointer"
-                      onClick={() => {
-                        handleViewClick(group.employeeId)
-                      }}
-                    />
-                  ) : (
-                    <div className="w-9 h-9 rounded-full bg-[var(--color-primary-light)] flex items-center justify-center text-[var(--color-primary-darker)] font-bold text-sm shrink-0 shadow-inner cursor-pointer"
-                      onClick={() => {
-                        handleViewClick(group.employeeId)
-                      }}>
-                      {group.employee.customerName.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="overflow-hidden">
-                    <p className="font-bold text-gray-900 text-sm truncate">{group.employee.customerName}</p>
-                    <p className="text-[11px] text-gray-400 font-medium">
-                      Actives: <span className="text-[var(--color-primary)]">{activeDaysCount}/7</span>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-7 gap-1">
-                  {weekDays.map((day, idx) => {
-                    const dateStr = getLocalDateString(day);
-                    const record = group.weeklyData[dateStr];
-                    const isToday = dateStr === getLocalDateString(new Date());
-
-                    const isPending =
-                      record &&
-                      !record.clockIn &&
-                      !record.clockOut &&
-                      !record.markedByAdminId &&
-                      ['leave', 'workfromhome'].includes(record.status);
-
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() =>
-                          isPending
-                            ? openApproveModal(group.employeeId, group.employee.customerName, day, record)
-                            : openEditModal(group.employeeId, group.employee.customerName, day, record)
-                        }
-                        className={`relative flex flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 cursor-pointer ${isToday ? 'bg-[var(--color-primary-lighter)]/20' : ''}`}
-                      >
-                        {isPending && (
-                          <span className="absolute top-0.5 right-0.5 flex h-2 w-2 z-10">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-orange-500 border border-white"></span>
-                          </span>
-                        )}
-
-                        {record ? (
-                          record.status === 'present'
-                            ? <CheckCircle2 size={18} className="text-green-500" strokeWidth={2.5} />
-                            : record.status === 'half_day'
-                              ? <Clock size={18} className="text-yellow-500" strokeWidth={2.5} />
-                              : record.status === 'workfromhome'
-                                ? <Home size={17} className={isPending ? "text-orange-500" : "text-blue-500"} strokeWidth={2.5} />
-                                : record.status === 'leave'
-                                  ? <CalendarIcon size={17} className={isPending ? "text-orange-500" : "text-purple-500"} strokeWidth={2.5} />
-                                  : <XCircle size={18} className="text-red-500" strokeWidth={2.5} />
-                        ) : (
-                          day.getDay() === 0 ? (
-                            <span className="w-1.5 h-1.5 rounded-full bg-gray-200"></span>
-                          ) : (
-                            <span className="text-gray-300 font-bold text-xs">-</span>
-                          )
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })
-        )}
       </div>
 
       {/* --- MOBILE MODAL: JUMP TO WEEK CALENDAR --- */}

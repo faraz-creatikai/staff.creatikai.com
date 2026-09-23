@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
     Bot,
     Sparkles,
@@ -26,6 +28,7 @@ import {
     History,
     User,
     AlertOctagon,
+    Copy,
 } from "lucide-react";
 import { toast } from "react-toastify";
 
@@ -62,8 +65,7 @@ function AgentAvatar({ size = 40, ring = false }: { size?: number; ring?: boolea
     const [imgError, setImgError] = useState(false);
     return (
         <div
-            className={`relative shrink-0 overflow-hidden rounded-full bg-white ${ring ? "ring-2 ring-white/80 shadow-lg" : ""
-                }`}
+            className={`relative shrink-0 overflow-hidden rounded-full bg-white ${ring ? "ring-2 ring-white/80 shadow-lg" : ""}`}
             style={{ width: size, height: size }}
         >
             {!imgError ? (
@@ -81,6 +83,51 @@ function AgentAvatar({ size = 40, ring = false }: { size?: number; ring?: boolea
         </div>
     );
 }
+
+// --- PREMIUM LLM UI COMPONENTS ---
+
+// 1. Code Block with Copy Button
+const CodeBlock = ({ inline, className, children, ...props }: any) => {
+    const [copied, setCopied] = useState(false);
+    const match = /language-(\w+)/.exec(className || '');
+    const codeString = String(children).replace(/\n$/, '');
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(codeString);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    if (!inline) {
+        return (
+            <div className="relative my-4 flex w-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm">
+                <div className="flex items-center justify-between bg-gray-100/80 px-4 py-2 border-b border-gray-200">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                        {match ? match[1] : 'Code'}
+                    </span>
+                    <button
+                        onClick={handleCopy}
+                        className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-900 cursor-pointer"
+                    >
+                        {copied ? <CheckCircle2 size={13} className="text-green-600" /> : <Copy size={13} />}
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+                <div className="custom-scrollbar overflow-x-auto p-4 text-[13px] leading-relaxed text-gray-800 font-mono">
+                    <code className={className} {...props}>
+                        {children}
+                    </code>
+                </div>
+            </div>
+        );
+    }
+    // Inline code snippet styling
+    return (
+        <code className="rounded-md bg-[var(--color-primary-lighter)] px-1.5 py-0.5 text-[13px] font-semibold text-[var(--color-primary-dark)]" {...props}>
+            {children}
+        </code>
+    );
+};
 
 export default function AIAgentPanel() {
     const [isOpen, setIsOpen] = useState(false);
@@ -105,7 +152,6 @@ export default function AIAgentPanel() {
     const activeSessionIdRef = useRef<string | null>(null);
     const hasLoadedOnce = useRef(false);
 
-    // Synchronize ref on every state update
     useEffect(() => {
         activeSessionIdRef.current = activeSessionId;
     }, [activeSessionId]);
@@ -187,9 +233,6 @@ export default function AIAgentPanel() {
         setTimeout(() => textareaRef.current?.focus(), 50);
     };
 
-    // ========================================================================
-    // ROBUST MESSAGE SENDER WITH ERROR BUBBLE RENDERING
-    // ========================================================================
     const handleSendMessage = async (eOrText?: any) => {
         const isSuggestion = typeof eOrText === "string";
         const textToSend = isSuggestion ? eOrText : inputValue;
@@ -202,7 +245,6 @@ export default function AIAgentPanel() {
             if (textareaRef.current) textareaRef.current.style.height = "auto";
         }
 
-        // 1. Optimistic User Message
         const optimisticMsg: ChatMessage = {
             id: Date.now().toString(),
             role: "user",
@@ -213,14 +255,12 @@ export default function AIAgentPanel() {
         setIsTyping(true);
 
         try {
-            // 2. Always send through the freshest ref value
             const targetSessionId = activeSessionIdRef.current || undefined;
             const response = await sendAdminAgentMessage(userText, targetSessionId);
 
             if (response && response.success && response.data) {
                 const { text, sessionId } = response.data;
 
-                // If this was a new chat, adopt the returned session ID
                 if (!activeSessionIdRef.current && sessionId) {
                     setActiveSessionId(sessionId);
                     activeSessionIdRef.current = sessionId;
@@ -244,14 +284,13 @@ export default function AIAgentPanel() {
 
             let displayMessage = "";
             if (isQuota) {
-                displayMessage = "⚠️ **AI Quota Exceeded (429)**\nYou have exceeded the Gemini free tier limit (20 requests/day for `gemini-2.5-flash`). Please wait ~50s or update your API key in project settings.";
+                displayMessage = "⚠️ **AI Quota Exceeded (429)**\nYou have exceeded the Gemini free tier limit. Please wait ~50s or update your API key.";
                 toast.warning("Gemini Quota Exceeded (429)");
             } else {
-                displayMessage = `❌ **Server Error (${errorStatus || 500})**\n${backendMessage || "An unexpected error occurred while communicating with the server."}`;
+                displayMessage = `❌ **Server Error**\n${backendMessage || "An unexpected error occurred."}`;
                 toast.error("Agent failed to respond.");
             }
 
-            // Render the error directly into the chat stream
             const errorAiMsg: ChatMessage = {
                 id: (Date.now() + 1).toString(),
                 role: "model",
@@ -302,38 +341,6 @@ export default function AIAgentPanel() {
             toast.error("Failed to delete chat.");
             loadSessions();
         }
-    };
-
-    const formatChatMessage = (text: string) => {
-        if (!text) return null;
-        const lines = text.split("\n");
-        return lines.map((line, idx) => {
-            if (line.trim() === "") return <br key={idx} />;
-            const isBullet = line.trim().startsWith("- ") || line.trim().startsWith("* ");
-            const cleanLine = isBullet ? line.trim().substring(2) : line;
-            const parts = cleanLine.split(/(\*\*.*?\*\*)/).map((part, i) =>
-                part.startsWith("**") && part.endsWith("**") ? (
-                    <strong key={i} className="font-bold text-gray-900">
-                        {part.slice(2, -2)}
-                    </strong>
-                ) : (
-                    part
-                )
-            );
-            if (isBullet) {
-                return (
-                    <div key={idx} className="mt-1 flex items-start gap-2">
-                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-400" />
-                        <span className="flex-1">{parts}</span>
-                    </div>
-                );
-            }
-            return (
-                <p key={idx} className="mb-1">
-                    {parts}
-                </p>
-            );
-        });
     };
 
     const RenderList = ({ items }: { items: string[] }) => (
@@ -652,27 +659,50 @@ export default function AIAgentPanel() {
                     return (
                         <div
                             key={msg.id}
-                            className={`mb-5 flex w-full animate-in slide-in-from-bottom-2 ${isUser ? "justify-end" : "justify-start"}`}
+                            className={`mb-5 flex w-full max-w-[800px] mx-auto animate-in slide-in-from-bottom-2 ${isUser ? "justify-end" : "justify-start"}`}
                         >
-                            <div className={`flex max-w-[85%] gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
-                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm ${isUser ? "bg-gray-900" : isError ? "bg-red-500 text-white" : ""
-                                    }`}>
+                            <div className={`flex w-full max-w-[90%] gap-2.5 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+                                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full shadow-sm ${isUser ? "bg-gray-900" : isError ? "bg-red-500 text-white" : ""}`}>
                                     {isUser ? <User size={15} className="text-white" /> : isError ? <AlertOctagon size={16} /> : <AgentAvatar size={32} />}
                                 </div>
                                 <div
-                                    className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${isUser
-                                        ? "rounded-tr-sm bg-gray-900 text-white shadow-md"
-                                        : isError
-                                            ? "rounded-tl-sm border border-red-200 bg-red-50 text-red-800 shadow-sm"
-                                            : "rounded-tl-sm border border-gray-200 bg-white text-gray-800 shadow-sm"
-                                        }`}
+                                    className={`rounded-2xl px-5 py-4 text-sm leading-relaxed overflow-x-auto custom-scrollbar ${
+                                        isUser
+                                            ? "rounded-tr-sm bg-gray-900 text-white shadow-md"
+                                            : isError
+                                                ? "rounded-tl-sm border border-red-200 bg-red-50 text-red-800 shadow-sm"
+                                                : "rounded-tl-sm border border-gray-200 bg-white text-gray-800 shadow-sm"
+                                    }`}
                                 >
                                     {isUser ? (
                                         <div className="whitespace-pre-wrap">{msg.content}</div>
                                     ) : (
-                                        <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-li:my-1 prose-strong:text-[var(--color-primary-dark)]">
-                                            {formatChatMessage(msg.content)}
-                                        </div>
+                                        // --- REACT MARKDOWN INTEGRATION ---
+                                        <ReactMarkdown
+                                            remarkPlugins={[remarkGfm]}
+                                            components={{
+                                                code: CodeBlock,
+                                                table: ({ node, ...props }) => (
+                                                    <div className="overflow-x-auto my-4 w-full">
+                                                        <table className="w-full text-left border-collapse rounded-lg overflow-hidden ring-1 ring-gray-200" {...props} />
+                                                    </div>
+                                                ),
+                                                thead: ({ node, ...props }) => <thead className="bg-gray-50/80 border-b border-gray-200" {...props} />,
+                                                th: ({ node, ...props }) => <th className="px-4 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider" {...props} />,
+                                                td: ({ node, ...props }) => <td className="px-4 py-3 text-[13px] text-gray-700 border-b border-gray-100 whitespace-nowrap" {...props} />,
+                                                ul: ({ node, ...props }) => <ul className="list-disc pl-5 space-y-1 my-3 marker:text-gray-400" {...props} />,
+                                                ol: ({ node, ...props }) => <ol className="list-decimal pl-5 space-y-1 my-3 marker:text-gray-400" {...props} />,
+                                                a: ({ node, ...props }) => <a className="text-[var(--color-primary)] hover:underline font-semibold" target="_blank" rel="noopener noreferrer" {...props} />,
+                                                strong: ({ node, ...props }) => <strong className="font-bold text-[var(--color-primary-dark)]" {...props} />,
+                                                h1: ({ node, ...props }) => <h1 className="text-lg font-black text-gray-900 mt-4 mb-2" {...props} />,
+                                                h2: ({ node, ...props }) => <h2 className="text-base font-bold text-gray-900 mt-4 mb-2" {...props} />,
+                                                h3: ({ node, ...props }) => <h3 className="text-sm font-bold text-gray-900 mt-3 mb-1" {...props} />,
+                                                p: ({ node, ...props }) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+                                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-gray-200 pl-4 py-1 my-3 italic text-gray-500 bg-gray-50 rounded-r-lg" {...props} />
+                                            }}
+                                        >
+                                            {msg.content}
+                                        </ReactMarkdown>
                                     )}
                                 </div>
                             </div>
@@ -698,7 +728,7 @@ export default function AIAgentPanel() {
     );
 
     const renderChatInput = () => (
-        <div className="shrink-0 border-t border-gray-100 bg-white p-3">
+        <div className="shrink-0 border-t border-gray-100 bg-white p-3 w-full max-w-[800px] mx-auto">
             <div className="relative flex items-end gap-2 rounded-2xl border border-gray-200 bg-gray-50 p-2 shadow-sm transition-all focus-within:border-[var(--color-primary)] focus-within:ring-2 focus-within:ring-[var(--color-primary-light)]">
                 <textarea
                     ref={textareaRef}
@@ -780,7 +810,7 @@ export default function AIAgentPanel() {
             top-0 left-0 right-0 bottom-0 h-[100dvh] w-full rounded-none
             
             ${isExpanded
-                            ? "sm:top-1/2 sm:left-1/2 sm:bottom-auto sm:right-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:h-[95vh] sm:max-h-[800px] sm:w-[95vw] sm:max-w-[1400px] sm:rounded-[28px] "
+                            ? "sm:top-1/2 sm:left-1/2 sm:bottom-auto sm:right-auto sm:-translate-x-1/2 sm:-translate-y-1/2 sm:h-[100dvh]  sm:w-[100dvw]  "
                             : "sm:bottom-6 sm:right-6 sm:top-auto sm:left-auto sm:translate-x-0 sm:translate-y-0 sm:h-[90vh] sm:max-h-[800px] sm:w-[400px] sm:rounded-[28px] "
                         }
           `}
